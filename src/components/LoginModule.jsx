@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Waves, Lock, Mail, ArrowRight, CheckCircle2, AlertCircle, ShieldCheck, Sparkles } from 'lucide-react';
+import { Waves, Lock, Mail, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function LoginModule({ onLoginSuccess }) {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('contatolemegestao@gmail.com');
-  const [password, setPassword] = useState('lemegestao2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -46,7 +46,7 @@ export default function LoginModule({ onLoginSuccess }) {
           });
 
           if (error) {
-            // Se o usuário ainda não existir no Supabase, tenta criar automaticamente para o email da Leme Gestao
+            // Se for a conta da Leme Gestão e ainda não estiver criada no Supabase Auth, cria no primeiro login
             if (email.trim().toLowerCase() === 'contatolemegestao@gmail.com') {
               const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
                 email: email.trim(),
@@ -54,7 +54,6 @@ export default function LoginModule({ onLoginSuccess }) {
               });
 
               if (!signUpError && signUpData?.user) {
-                // Tenta login novamente
                 const { data: retryData } = await supabase.auth.signInWithPassword({
                   email: email.trim(),
                   password: password.trim()
@@ -90,12 +89,6 @@ export default function LoginModule({ onLoginSuccess }) {
     }
   };
 
-  const handleDemoFill = () => {
-    setEmail('contatolemegestao@gmail.com');
-    setPassword('lemegestao2026');
-    setErrorMsg('');
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 relative overflow-hidden font-['Inter',sans-serif]">
       {/* Elementos visuais de fundo */}
@@ -119,21 +112,6 @@ export default function LoginModule({ onLoginSuccess }) {
             </p>
           </div>
 
-          {/* Badge Conta Padrão */}
-          <div className="bg-brand-50 border border-brand-200 rounded-2xl p-3.5 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-brand-600 shrink-0" />
-              <span className="text-brand-900 font-medium">Acesso Padrão Configurado</span>
-            </div>
-            <button
-              type="button"
-              onClick={handleDemoFill}
-              className="text-brand-600 font-bold hover:underline"
-            >
-              Preencher
-            </button>
-          </div>
-
           {/* Mensagens de Alerta / Sucesso */}
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
@@ -149,7 +127,7 @@ export default function LoginModule({ onLoginSuccess }) {
             </div>
           )}
 
-          {/* Formulário */}
+          {/* Formulário Limpo */}
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
