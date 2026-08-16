@@ -40,7 +40,17 @@ export const loadViveiros = () => {
   }
   return data;
 };
-export const saveViveiros = (data) => setStorageData(KEYS.VIVEIROS, data);
+
+export const saveViveiros = async (data) => {
+  setStorageData(KEYS.VIVEIROS, data);
+  if (supabase) {
+    try {
+      await supabase.from('viveiros').upsert(data);
+    } catch (e) {
+      console.warn('Erro ao sincronizar viveiros no Supabase:', e);
+    }
+  }
+};
 
 export const loadPovoamentos = () => {
   const data = getStorageData(KEYS.POVOAMENTOS, null);
@@ -50,7 +60,27 @@ export const loadPovoamentos = () => {
   }
   return data;
 };
-export const savePovoamentos = (data) => setStorageData(KEYS.POVOAMENTOS, data);
+
+export const savePovoamentos = async (data) => {
+  setStorageData(KEYS.POVOAMENTOS, data);
+  if (supabase) {
+    try {
+      const formatted = data.map((p) => ({
+        id: p.id,
+        viveiro_id: p.viveiroId,
+        numero_lote: p.numeroLote || 'Lote 01',
+        data_povoamento: p.dataPovoamento,
+        quantidade: p.quantidade,
+        densidade: p.densidade,
+        status: p.status,
+        data_finalizacao: p.dataFinalizacao || null
+      }));
+      await supabase.from('povoamentos').upsert(formatted);
+    } catch (e) {
+      console.warn('Erro ao sincronizar povoamentos no Supabase:', e);
+    }
+  }
+};
 
 export const loadParametros = () => {
   const data = getStorageData(KEYS.PARAMETROS, null);
@@ -60,7 +90,26 @@ export const loadParametros = () => {
   }
   return data;
 };
-export const saveParametros = (data) => setStorageData(KEYS.PARAMETROS, data);
+
+export const saveParametros = async (data) => {
+  setStorageData(KEYS.PARAMETROS, data);
+  if (supabase) {
+    try {
+      const formatted = data.map((p) => ({
+        id: p.id,
+        name: p.name,
+        unit: p.unit,
+        has_min: p.hasMin,
+        min: p.min,
+        max: p.max,
+        is_custom: p.isCustom
+      }));
+      await supabase.from('parametros').upsert(formatted);
+    } catch (e) {
+      console.warn('Erro ao sincronizar parâmetros no Supabase:', e);
+    }
+  }
+};
 
 export const loadLancamentos = () => {
   const data = getStorageData(KEYS.LANCAMENTOS, null);
@@ -70,9 +119,49 @@ export const loadLancamentos = () => {
   }
   return data;
 };
-export const saveLancamentos = (data) => setStorageData(KEYS.LANCAMENTOS, data);
 
-// Reset completo para dados de fábrica
+export const saveLancamentos = async (data) => {
+  setStorageData(KEYS.LANCAMENTOS, data);
+  if (supabase) {
+    try {
+      const formatted = data.map((l) => ({
+        id: l.id,
+        viveiro_id: l.viveiroId,
+        povoamento_id: l.povoamentoId,
+        parameter_id: l.parameterId,
+        date: l.date,
+        value: l.value
+      }));
+      await supabase.from('lancamentos').upsert(formatted);
+    } catch (e) {
+      console.warn('Erro ao sincronizar lançamentos no Supabase:', e);
+    }
+  }
+};
+
+// --- INTEGRAÇÃO ASSÍNCRONA COM SUPABASE ---
+export const fetchAllFromSupabase = async () => {
+  if (!supabase) return null;
+  try {
+    const [vivRes, povRes, parRes, lanRes] = await Promise.all([
+      supabase.from('viveiros').select('*'),
+      supabase.from('povoamentos').select('*'),
+      supabase.from('parametros').select('*'),
+      supabase.from('lancamentos').select('*')
+    ]);
+
+    return {
+      viveiros: vivRes.data && vivRes.data.length > 0 ? vivRes.data : null,
+      povoamentos: povRes.data && povRes.data.length > 0 ? povRes.data : null,
+      parametros: parRes.data && parRes.data.length > 0 ? parRes.data : null,
+      lancamentos: lanRes.data && lanRes.data.length > 0 ? lanRes.data : null
+    };
+  } catch (e) {
+    console.warn('Supabase não conectado ou inacessível:', e);
+    return null;
+  }
+};
+
 export const resetToDefaultData = () => {
   localStorage.clear();
   window.location.reload();

@@ -9,7 +9,8 @@ import {
   loadViveiros, saveViveiros,
   loadPovoamentos, savePovoamentos,
   loadParametros, saveParametros,
-  loadLancamentos, saveLancamentos
+  loadLancamentos, saveLancamentos,
+  fetchAllFromSupabase
 } from './utils/storage';
 import { INITIAL_LANCAMENTOS } from './data/initialData';
 
@@ -20,7 +21,6 @@ export default function App() {
   const [povoamentos, setPovoamentos] = useState(loadPovoamentos);
   const [parametros, setParametros] = useState(loadParametros);
   
-  // Garantir que a lista de lançamentos possua o histórico completo (168 lançamentos)
   const [lancamentos, setLancamentos] = useState(() => {
     const loaded = loadLancamentos();
     if (!loaded || loaded.length < 50) {
@@ -30,7 +30,56 @@ export default function App() {
     return loaded;
   });
 
-  // Sync to LocalStorage
+  // Tentar buscar e sincronizar do Supabase ao iniciar a aplicação
+  useEffect(() => {
+    async function syncCloudData() {
+      const cloud = await fetchAllFromSupabase();
+      if (cloud) {
+        if (cloud.viveiros && cloud.viveiros.length > 0) {
+          setViveiros(cloud.viveiros);
+        }
+        if (cloud.povoamentos && cloud.povoamentos.length > 0) {
+          const mapped = cloud.povoamentos.map((p) => ({
+            id: p.id,
+            viveiroId: p.viveiro_id,
+            numeroLote: p.numero_lote,
+            dataPovoamento: p.data_povoamento,
+            quantidade: Number(p.quantidade),
+            densidade: Number(p.densidade),
+            status: p.status,
+            dataFinalizacao: p.data_finalizacao
+          }));
+          setPovoamentos(mapped);
+        }
+        if (cloud.parametros && cloud.parametros.length > 0) {
+          const mapped = cloud.parametros.map((p) => ({
+            id: p.id,
+            name: p.name,
+            unit: p.unit,
+            hasMin: p.has_min,
+            min: p.min !== null ? Number(p.min) : null,
+            max: Number(p.max),
+            isCustom: p.is_custom
+          }));
+          setParametros(mapped);
+        }
+        if (cloud.lancamentos && cloud.lancamentos.length > 0) {
+          const mapped = cloud.lancamentos.map((l) => ({
+            id: l.id,
+            viveiroId: l.viveiro_id,
+            povoamentoId: l.povoamento_id,
+            parameterId: l.parameter_id,
+            date: l.date,
+            value: Number(l.value)
+          }));
+          setLancamentos(mapped);
+        }
+      }
+    }
+    syncCloudData();
+  }, []);
+
+  // Sync de Alterações para LocalStorage + Supabase
   useEffect(() => {
     saveViveiros(viveiros);
   }, [viveiros]);
