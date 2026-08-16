@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
+import LoginModule from './components/LoginModule';
 import DashboardModule from './components/DashboardModule';
 import LancamentoModule from './components/LancamentoModule';
 import ViveirosModule from './components/ViveirosModule';
 import PovoamentoModule from './components/PovoamentoModule';
 import ParametrosModule from './components/ParametrosModule';
+import { supabase } from './lib/supabase';
 import {
   loadViveiros, saveViveiros,
   loadPovoamentos, savePovoamentos,
@@ -15,6 +17,8 @@ import {
 import { INITIAL_LANCAMENTOS } from './data/initialData';
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
 
   const [viveiros, setViveiros] = useState(loadViveiros);
@@ -30,8 +34,39 @@ export default function App() {
     return loaded;
   });
 
-  // Tentar buscar e sincronizar do Supabase ao iniciar a aplicação
+  // 1. Autenticação e Verificação de Sessão do Supabase
   useEffect(() => {
+    async function checkAuthSession() {
+      if (supabase) {
+        try {
+          const { data } = await supabase.auth.getSession();
+          if (data?.session?.user) {
+            setUser(data.session.user);
+          }
+        } catch (e) {
+          console.warn('Erro ao verificar sessão do Supabase:', e);
+        }
+      }
+      setAuthChecking(false);
+    }
+    checkAuthSession();
+
+    if (supabase) {
+      const { data: authListener } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          setUser(session?.user || null);
+        }
+      );
+      return () => {
+        authListener?.subscription?.unsubscribe();
+      };
+    }
+  }, []);
+
+  // 2. Sincronizar dados do Supabase para o Usuário Ativo
+  useEffect(() => {
+    if (!user) return;
+
     async function syncCloudData() {
       const cloud = await fetchAllFromSupabase();
       if (cloud) {
@@ -77,29 +112,59 @@ export default function App() {
       }
     }
     syncCloudData();
-  }, []);
+  }, [user]);
 
   // Sync de Alterações para LocalStorage + Supabase
   useEffect(() => {
-    saveViveiros(viveiros);
-  }, [viveiros]);
+    if (user) saveViveiros(viveiros);
+  }, [viveiros, user]);
 
   useEffect(() => {
-    savePovoamentos(povoamentos);
-  }, [povoamentos]);
+    if (user) savePovoamentos(povoamentos);
+  }, [povoamentos, user]);
 
   useEffect(() => {
-    saveParametros(parametros);
-  }, [parametros]);
+    if (user) saveParametros(parametros);
+  }, [parametros, user]);
 
   useEffect(() => {
-    saveLancamentos(lancamentos);
-  }, [lancamentos]);
+    if (user) saveLancamentos(lancamentos);
+  }, [lancamentos, user]);
 
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    setUser(null);
+  };
+
+  // Tela de Carregando Inicial
+  if (authChecking) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-brand-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-xs text-slate-400 font-medium">Carregando AquaControl...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Se NÃO estiver logado, exibe a Tela de Login
+  if (!user) {
+    return <LoginModule onLoginSuccess={(u) => setUser(u)} />;
+  }
+
+  // Aplicação Principal Autenticada
   return (
     <div className="min-h-screen bg-white text-gray-800 flex flex-col font-['Inter',sans-serif]">
-      {/* Top Navbar */}
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Top Navbar com Usuário e Logout */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        user={user}
+        onLogout={handleLogout}
+      />
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
