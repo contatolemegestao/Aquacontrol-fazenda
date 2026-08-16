@@ -6,11 +6,10 @@ import {
   INITIAL_LANCAMENTOS
 } from '../data/initialData';
 
-const KEYS = {
-  VIVEIROS: 'aqua_control_viveiros_lote_v1',
-  POVOAMENTOS: 'aqua_control_povoamentos_lote_v1',
-  PARAMETROS: 'aqua_control_parametros_lote_v1',
-  LANCAMENTOS: 'aqua_control_lancamentos_lote_v1'
+// Função para gerar chaves isoladas por e-mail no LocalStorage
+const getUserKey = (baseKey, userEmail) => {
+  const safeEmail = userEmail ? userEmail.toLowerCase().replace(/[^a-z0-9]/g, '_') : 'guest';
+  return `${baseKey}_${safeEmail}`;
 };
 
 export const getStorageData = (key, fallbackData) => {
@@ -31,42 +30,56 @@ export const setStorageData = (key, data) => {
   }
 };
 
-// --- LEITURA E ESCRITA LOCAL (FALLBACK PERSISTENTE) ---
-export const loadViveiros = () => {
-  const data = getStorageData(KEYS.VIVEIROS, null);
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    setStorageData(KEYS.VIVEIROS, INITIAL_VIVEIROS);
-    return INITIAL_VIVEIROS;
+// --- CARREGAMENTO ISOLADO POR USUÁRIO ---
+export const loadViveirosForUser = (userEmail) => {
+  const isLemeAccount = userEmail?.toLowerCase() === 'contatolemegestao@gmail.com';
+  const fallback = isLemeAccount ? INITIAL_VIVEIROS : [];
+  const key = getUserKey('aqua_control_viveiros_v2', userEmail);
+  const data = getStorageData(key, null);
+  
+  if (!data || !Array.isArray(data)) {
+    setStorageData(key, fallback);
+    return fallback;
   }
   return data;
 };
 
-export const saveViveiros = async (data) => {
-  setStorageData(KEYS.VIVEIROS, data);
-  if (supabase) {
+export const saveViveirosForUser = async (userEmail, data, userId) => {
+  const key = getUserKey('aqua_control_viveiros_v2', userEmail);
+  setStorageData(key, data);
+
+  if (supabase && userId) {
     try {
-      await supabase.from('viveiros').upsert(data);
+      const payload = data.map((v) => ({ ...v, user_id: userId }));
+      await supabase.from('viveiros').upsert(payload);
     } catch (e) {
       console.warn('Erro ao sincronizar viveiros no Supabase:', e);
     }
   }
 };
 
-export const loadPovoamentos = () => {
-  const data = getStorageData(KEYS.POVOAMENTOS, null);
-  if (!data || !Array.isArray(data) || data.length === 0) {
-    setStorageData(KEYS.POVOAMENTOS, INITIAL_POVOAMENTOS);
-    return INITIAL_POVOAMENTOS;
+export const loadPovoamentosForUser = (userEmail) => {
+  const isLemeAccount = userEmail?.toLowerCase() === 'contatolemegestao@gmail.com';
+  const fallback = isLemeAccount ? INITIAL_POVOAMENTOS : [];
+  const key = getUserKey('aqua_control_povoamentos_v2', userEmail);
+  const data = getStorageData(key, null);
+  
+  if (!data || !Array.isArray(data)) {
+    setStorageData(key, fallback);
+    return fallback;
   }
   return data;
 };
 
-export const savePovoamentos = async (data) => {
-  setStorageData(KEYS.POVOAMENTOS, data);
-  if (supabase) {
+export const savePovoamentosForUser = async (userEmail, data, userId) => {
+  const key = getUserKey('aqua_control_povoamentos_v2', userEmail);
+  setStorageData(key, data);
+
+  if (supabase && userId) {
     try {
-      const formatted = data.map((p) => ({
+      const payload = data.map((p) => ({
         id: p.id,
+        user_id: userId,
         viveiro_id: p.viveiroId,
         numero_lote: p.numeroLote || 'Lote 01',
         data_povoamento: p.dataPovoamento,
@@ -75,28 +88,33 @@ export const savePovoamentos = async (data) => {
         status: p.status,
         data_finalizacao: p.dataFinalizacao || null
       }));
-      await supabase.from('povoamentos').upsert(formatted);
+      await supabase.from('povoamentos').upsert(payload);
     } catch (e) {
       console.warn('Erro ao sincronizar povoamentos no Supabase:', e);
     }
   }
 };
 
-export const loadParametros = () => {
-  const data = getStorageData(KEYS.PARAMETROS, null);
+export const loadParametrosForUser = (userEmail) => {
+  const key = getUserKey('aqua_control_parametros_v2', userEmail);
+  const data = getStorageData(key, null);
+  
   if (!data || !Array.isArray(data) || data.length === 0) {
-    setStorageData(KEYS.PARAMETROS, INITIAL_PARAMETERS);
+    setStorageData(key, INITIAL_PARAMETERS);
     return INITIAL_PARAMETERS;
   }
   return data;
 };
 
-export const saveParametros = async (data) => {
-  setStorageData(KEYS.PARAMETROS, data);
-  if (supabase) {
+export const saveParametrosForUser = async (userEmail, data, userId) => {
+  const key = getUserKey('aqua_control_parametros_v2', userEmail);
+  setStorageData(key, data);
+
+  if (supabase && userId) {
     try {
-      const formatted = data.map((p) => ({
+      const payload = data.map((p) => ({
         id: p.id,
+        user_id: userId,
         name: p.name,
         unit: p.unit,
         has_min: p.hasMin,
@@ -104,50 +122,57 @@ export const saveParametros = async (data) => {
         max: p.max,
         is_custom: p.isCustom
       }));
-      await supabase.from('parametros').upsert(formatted);
+      await supabase.from('parametros').upsert(payload);
     } catch (e) {
       console.warn('Erro ao sincronizar parâmetros no Supabase:', e);
     }
   }
 };
 
-export const loadLancamentos = () => {
-  const data = getStorageData(KEYS.LANCAMENTOS, null);
-  if (!data || !Array.isArray(data) || data.length < 50) {
-    setStorageData(KEYS.LANCAMENTOS, INITIAL_LANCAMENTOS);
-    return INITIAL_LANCAMENTOS;
+export const loadLancamentosForUser = (userEmail) => {
+  const isLemeAccount = userEmail?.toLowerCase() === 'contatolemegestao@gmail.com';
+  const fallback = isLemeAccount ? INITIAL_LANCAMENTOS : [];
+  const key = getUserKey('aqua_control_lancamentos_v2', userEmail);
+  const data = getStorageData(key, null);
+
+  if (!data || !Array.isArray(data)) {
+    setStorageData(key, fallback);
+    return fallback;
   }
   return data;
 };
 
-export const saveLancamentos = async (data) => {
-  setStorageData(KEYS.LANCAMENTOS, data);
-  if (supabase) {
+export const saveLancamentosForUser = async (userEmail, data, userId) => {
+  const key = getUserKey('aqua_control_lancamentos_v2', userEmail);
+  setStorageData(key, data);
+
+  if (supabase && userId) {
     try {
-      const formatted = data.map((l) => ({
+      const payload = data.map((l) => ({
         id: l.id,
+        user_id: userId,
         viveiro_id: l.viveiroId,
         povoamento_id: l.povoamentoId,
         parameter_id: l.parameterId,
         date: l.date,
         value: l.value
       }));
-      await supabase.from('lancamentos').upsert(formatted);
+      await supabase.from('lancamentos').upsert(payload);
     } catch (e) {
       console.warn('Erro ao sincronizar lançamentos no Supabase:', e);
     }
   }
 };
 
-// --- INTEGRAÇÃO ASSÍNCRONA COM SUPABASE ---
-export const fetchAllFromSupabase = async () => {
-  if (!supabase) return null;
+// --- BUSCA NA NUVEM FILTRADA PELO USER_ID DO SUPABASE ---
+export const fetchAllFromSupabaseForUser = async (userId) => {
+  if (!supabase || !userId) return null;
   try {
     const [vivRes, povRes, parRes, lanRes] = await Promise.all([
-      supabase.from('viveiros').select('*'),
-      supabase.from('povoamentos').select('*'),
-      supabase.from('parametros').select('*'),
-      supabase.from('lancamentos').select('*')
+      supabase.from('viveiros').select('*').eq('user_id', userId),
+      supabase.from('povoamentos').select('*').eq('user_id', userId),
+      supabase.from('parametros').select('*').eq('user_id', userId),
+      supabase.from('lancamentos').select('*').eq('user_id', userId)
     ]);
 
     return {
@@ -157,12 +182,7 @@ export const fetchAllFromSupabase = async () => {
       lancamentos: lanRes.data && lanRes.data.length > 0 ? lanRes.data : null
     };
   } catch (e) {
-    console.warn('Supabase não conectado ou inacessível:', e);
+    console.warn('Erro ao buscar dados do usuário no Supabase:', e);
     return null;
   }
-};
-
-export const resetToDefaultData = () => {
-  localStorage.clear();
-  window.location.reload();
 };

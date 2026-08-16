@@ -8,33 +8,25 @@ import PovoamentoModule from './components/PovoamentoModule';
 import ParametrosModule from './components/ParametrosModule';
 import { supabase } from './lib/supabase';
 import {
-  loadViveiros, saveViveiros,
-  loadPovoamentos, savePovoamentos,
-  loadParametros, saveParametros,
-  loadLancamentos, saveLancamentos,
-  fetchAllFromSupabase
+  loadViveirosForUser, saveViveirosForUser,
+  loadPovoamentosForUser, savePovoamentosForUser,
+  loadParametrosForUser, saveParametrosForUser,
+  loadLancamentosForUser, saveLancamentosForUser,
+  fetchAllFromSupabaseForUser
 } from './utils/storage';
-import { INITIAL_LANCAMENTOS } from './data/initialData';
+import { INITIAL_PARAMETERS } from './data/initialData';
 
 export default function App() {
   const [user, setUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState('viveiros');
 
-  const [viveiros, setViveiros] = useState(loadViveiros);
-  const [povoamentos, setPovoamentos] = useState(loadPovoamentos);
-  const [parametros, setParametros] = useState(loadParametros);
-  
-  const [lancamentos, setLancamentos] = useState(() => {
-    const loaded = loadLancamentos();
-    if (!loaded || loaded.length < 50) {
-      saveLancamentos(INITIAL_LANCAMENTOS);
-      return INITIAL_LANCAMENTOS;
-    }
-    return loaded;
-  });
+  const [viveiros, setViveiros] = useState([]);
+  const [povoamentos, setPovoamentos] = useState([]);
+  const [parametros, setParametros] = useState(INITIAL_PARAMETERS);
+  const [lancamentos, setLancamentos] = useState([]);
 
-  // 1. Autenticação e Verificação de Sessão do Supabase
+  // 1. Verificar Sessão no Supabase Auth
   useEffect(() => {
     async function checkAuthSession() {
       if (supabase) {
@@ -63,12 +55,34 @@ export default function App() {
     }
   }, []);
 
-  // 2. Sincronizar dados do Supabase para o Usuário Ativo
+  // 2. Quando o usuário loga ou muda de conta, recarrega os dados ISOLADOS daquele e-mail
   useEffect(() => {
     if (!user) return;
 
+    const email = user.email || '';
+    const userId = user.id || '';
+
+    // Carregar do armazenamento local isolado primeiro
+    const localViv = loadViveirosForUser(email);
+    const localPov = loadPovoamentosForUser(email);
+    const localPar = loadParametrosForUser(email);
+    const localLan = loadLancamentosForUser(email);
+
+    setViveiros(localViv);
+    setPovoamentos(localPov);
+    setParametros(localPar);
+    setLancamentos(localLan);
+
+    // Ajustar aba inicial: se for conta nova sem viveiros, vai para Cadastro de Viveiros
+    if (localViv.length === 0) {
+      setActiveTab('viveiros');
+    } else {
+      setActiveTab('dashboard');
+    }
+
+    // Buscar dados na nuvem filtrando pelo user_id do Supabase
     async function syncCloudData() {
-      const cloud = await fetchAllFromSupabase();
+      const cloud = await fetchAllFromSupabaseForUser(userId);
       if (cloud) {
         if (cloud.viveiros && cloud.viveiros.length > 0) {
           setViveiros(cloud.viveiros);
@@ -114,21 +128,29 @@ export default function App() {
     syncCloudData();
   }, [user]);
 
-  // Sync de Alterações para LocalStorage + Supabase
+  // 3. Salvar alterações isoladas para a conta logada
   useEffect(() => {
-    if (user) saveViveiros(viveiros);
+    if (user) {
+      saveViveirosForUser(user.email, viveiros, user.id);
+    }
   }, [viveiros, user]);
 
   useEffect(() => {
-    if (user) savePovoamentos(povoamentos);
+    if (user) {
+      savePovoamentosForUser(user.email, povoamentos, user.id);
+    }
   }, [povoamentos, user]);
 
   useEffect(() => {
-    if (user) saveParametros(parametros);
+    if (user) {
+      saveParametrosForUser(user.email, parametros, user.id);
+    }
   }, [parametros, user]);
 
   useEffect(() => {
-    if (user) saveLancamentos(lancamentos);
+    if (user) {
+      saveLancamentosForUser(user.email, lancamentos, user.id);
+    }
   }, [lancamentos, user]);
 
   const handleLogout = async () => {
@@ -138,7 +160,7 @@ export default function App() {
     setUser(null);
   };
 
-  // Tela de Carregando Inicial
+  // Carregando Inicial
   if (authChecking) {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center text-white">
@@ -150,12 +172,11 @@ export default function App() {
     );
   }
 
-  // Se NÃO estiver logado, exibe a Tela de Login
+  // Se NÃO estiver logado, exibe Tela de Login
   if (!user) {
     return <LoginModule onLoginSuccess={(u) => setUser(u)} />;
   }
 
-  // Aplicação Principal Autenticada
   return (
     <div className="min-h-screen bg-white text-gray-800 flex flex-col font-['Inter',sans-serif]">
       {/* Top Navbar com Usuário e Logout */}
