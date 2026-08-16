@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaControl - Qualidade de Água</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f5ff',
+              100: '#e0ebff',
+              500: '#1A56DB',
+              600: '#1e429f',
+              700: '#1a365d'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background-color: #ffffff; color: #1e293b; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const formatDateBR = (isoDateStr) => {
+      if (!isoDateStr) return '';
+      const parts = isoDateStr.split('-');
+      if (parts.length === 3) {
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      }
+      return isoDateStr;
+    };
+
+    const INITIAL_PARAMETERS = [
+      { id: 'param-1', name: 'Oxigênio Dissolvido (O2)', unit: 'mg/L', hasMin: true, min: 4, max: 20 },
+      { id: 'param-2', name: 'pH', unit: '-', hasMin: true, min: 6, max: 8.5 },
+      { id: 'param-3', name: 'Temperatura', unit: '°C', hasMin: true, min: 28, max: 32 },
+      { id: 'param-4', name: 'Alcalinidade', unit: 'mg CaCO₃/L', hasMin: true, min: 80, max: 250 },
+      { id: 'param-5', name: 'Dureza', unit: 'mg CaCO₃/L', hasMin: true, min: 80, max: 250 },
+      { id: 'param-6', name: 'Amônia Tóxica (NH₃)', unit: 'mg/L', hasMin: false, min: null, max: 0.05 },
+      { id: 'param-7', name: 'Nitrogênio Amoniacal Total (NAT)', unit: 'mg/L', hasMin: false, min: null, max: 1 },
+      { id: 'param-8', name: 'Nitrito (NO₂⁻)', unit: 'mg/L', hasMin: false, min: null, max: 0.5 },
+      { id: 'param-9', name: 'Salinidade', unit: 'ppt (g/L)', hasMin: true, min: 10, max: 20 },
+      { id: 'param-10', name: 'Transparência', unit: 'cm', hasMin: true, min: 30, max: 50 }
+    ];
+
+    const INITIAL_VIVEIROS = [
+      { id: 'viv-1', name: 'Viveiro 01 - Berçário', area: 5000 },
+      { id: 'viv-2', name: 'Viveiro 02 - Engorda A', area: 12000 },
+      { id: 'viv-3', name: 'Viveiro 03 - Engorda B', area: 15000 }
+    ];
+
+    const INITIAL_POVOAMENTOS = [
+      { id: 'pov-1', viveiroId: 'viv-1', dataPovoamento: '2026-05-15', quantidade: 150000, densidade: 30, status: 'ativo' },
+      { id: 'pov-2', viveiroId: 'viv-2', dataPovoamento: '2026-05-15', quantidade: 180000, densidade: 15, status: 'ativo' }
+    ];
+
+    const O2_VALUES_60 = [
+      5.5, 5.8, 6.2, 6.0, 5.4, 4.8, 4.2, 3.8, 3.5, 4.5,
+      5.2, 5.9, 6.3, 6.8, 7.2, 7.0, 6.5, 5.9, 5.3, 4.6,
+      3.9, 3.2, 4.1, 5.0, 5.7, 6.4, 6.1, 5.8, 5.2, 4.7,
+      5.3, 6.0, 6.6, 7.4, 8.0, 7.5, 6.9, 6.1, 5.5, 4.8,
+      3.6, 2.9, 3.7, 4.6, 5.4, 6.2, 6.9, 7.3, 6.7, 6.0,
+      5.6, 5.1, 4.5, 5.2, 6.1, 7.0, 20.5, 7.8, 6.2, 5.8
+    ];
+
+    const startDate = new Date('2026-06-14T00:00:00');
+    const INITIAL_LANCAMENTOS = [];
+    O2_VALUES_60.forEach((val, i) => {
+      const curDate = new Date(startDate);
+      curDate.setDate(curDate.getDate() + i);
+      const dateStr = curDate.toISOString().split('T')[0];
+      INITIAL_LANCAMENTOS.push({ id: `l-o2-day-${i+1}`, viveiroId: 'viv-1', parameterId: 'param-1', date: dateStr, value: val });
+    });
+
+    const formatThousands = (val) => {
+      if(!val) return '';
+      const clean = val.toString().replace(/\D/g, '');
+      if(!clean) return '';
+      return parseInt(clean, 10).toLocaleString('pt-BR');
+    };
+
+    const parseThousands = (val) => {
+      if(!val) return 0;
+      return parseInt(val.toString().replace(/\D/g, ''), 10) || 0;
+    };
+
+    const formatDensidade = (val) => {
+      if(!val || isNaN(val)) return '0';
+      const num = Number(val);
+      return Number.isInteger(num) ? num.toLocaleString('pt-BR') : num.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+    };
+
+    function App() {
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [viewMode, setViewMode] = useState('chart');
+
+      const [viveiros, setViveiros] = useState(() => JSON.parse(localStorage.getItem('ac_v_v4')) || INITIAL_VIVEIROS);
+      const [povoamentos, setPovoamentos] = useState(() => JSON.parse(localStorage.getItem('ac_p_v4')) || INITIAL_POVOAMENTOS);
+      const [parametros, setParametros] = useState(() => JSON.parse(localStorage.getItem('ac_par_v4')) || INITIAL_PARAMETERS);
+      const [lancamentos, setLancamentos] = useState(() => JSON.parse(localStorage.getItem('ac_l_v4')) || INITIAL_LANCAMENTOS);
+
+      useEffect(() => localStorage.setItem('ac_v_v4', JSON.stringify(viveiros)), [viveiros]);
+      useEffect(() => localStorage.setItem('ac_p_v4', JSON.stringify(povoamentos)), [povoamentos]);
+      useEffect(() => localStorage.setItem('ac_par_v4', JSON.stringify(parametros)), [parametros]);
+      useEffect(() => localStorage.setItem('ac_l_v4', JSON.stringify(lancamentos)), [lancamentos]);
+
+      const [toastMsg, setToastMsg] = useState('');
+      const triggerToast = (msg) => { setToastMsg(msg); setTimeout(() => setToastMsg(''), 4000); };
+
+      const [vName, setVName] = useState('');
+      const [vAreaFmt, setVAreaFmt] = useState('');
+      
+      const [povVivId, setPovVivId] = useState('');
+      const [povData, setPovData] = useState(new Date().toISOString().split('T')[0]);
+      const [povQtdFmt, setPovQtdFmt] = useState('');
+
+      const [paramName, setParamName] = useState('');
+      const [paramUnit, setParamUnit] = useState('mg/L');
+      const [paramHasMin, setParamHasMin] = useState(true);
+      const [paramMin, setParamMin] = useState('');
+      const [paramMax, setParamMax] = useState('');
+
+      const activeViveiros = viveiros.filter(v => povoamentos.some(p => p.viveiroId === v.id && p.status === 'ativo'));
+
+      const [lVivId, setLVivId] = useState(activeViveiros[0]?.id || '');
+      const [lParamId, setLParamId] = useState(INITIAL_PARAMETERS[0]?.id || '');
+      const [lDate, setLDate] = useState(new Date().toISOString().split('T')[0]);
+      const [lVal, setLVal] = useState('');
+
+      const addViveiro = (e) => {
+        e.preventDefault();
+        const area = parseThousands(vAreaFmt);
+        if(!vName || area <= 0) return;
+        setViveiros([...viveiros, { id: 'viv-'+Date.now(), name: vName, area }]);
+        setVName(''); setVAreaFmt('');
+        triggerToast('Viveiro cadastrado com sucesso!');
+      };
+
+      const addPovoamento = (e) => {
+        e.preventDefault();
+        const viv = viveiros.find(v => v.id === povVivId);
+        const qtd = parseThousands(povQtdFmt);
+        if(!povVivId || qtd <= 0) return;
+        const den = qtd / viv.area;
+        setPovoamentos([{ id: 'pov-'+Date.now(), viveiroId: povVivId, dataPovoamento: povData, quantidade: qtd, densidade: den, status: 'ativo' }, ...povoamentos]);
+        setPovVivId(''); setPovQtdFmt('');
+        triggerToast('Povoamento cadastrado com sucesso!');
+      };
+
+      const addParametro = (e) => {
+        e.preventDefault();
+        if(!paramName || !paramUnit || !paramMax) return;
+        setParametros([...parametros, {
+          id: 'param-'+Date.now(),
+          name: paramName,
+          unit: paramUnit,
+          hasMin: paramHasMin,
+          min: paramHasMin ? parseFloat(paramMin) : null,
+          max: parseFloat(paramMax)
+        }]);
+        setParamName(''); setParamMin(''); setParamMax('');
+        triggerToast('Parâmetro adicionado com sucesso!');
+      };
+
+      const addLancamento = (e) => {
+        e.preventDefault();
+        if(!lVivId || !lParamId || !lVal) return;
+        setLancamentos([{ id: 'l-'+Date.now(), viveiroId: lVivId, parameterId: lParamId, date: lDate, value: parseFloat(lVal) }, ...lancamentos]);
+        setLVal('');
+        triggerToast('Medição registrada com sucesso!');
+      };
+
+      const selectedParam = parametros.find(p => p.id === lParamId);
+      const freeViveiros = viveiros.filter(v => !povoamentos.some(p => p.viveiroId === v.id && p.status === 'ativo'));
+
+      return (
+        <div className="min-h-screen bg-white text-gray-800 flex flex-col relative">
+          {toastMsg && (
+            <div className="fixed top-20 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl text-sm font-medium animate-bounce">
+              ✓ {toastMsg}
+            </div>
+          )}
+
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+            <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+              <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setActiveTab('viveiros')}>
+                <div className="w-10 h-10 rounded-xl bg-brand-500 text-white flex items-center justify-center font-bold text-lg">💧</div>
+                <span className="text-xl font-bold">Aqua<span className="text-brand-500">Control</span></span>
+              </div>
+              <nav className="flex space-x-1 overflow-x-auto">
+                {[
+                  { id: 'viveiros', label: 'Cadastro de Viveiros' },
+                  { id: 'povoamento', label: 'Povoamento' },
+                  { id: 'parametros', label: 'Parâmetros' },
+                  { id: 'lancamento', label: 'Lançamento' },
+                  { id: 'dashboard', label: 'Dashboard' }
+                ].map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveTab(t.id)}
+                    className={`px-3.5 py-2 rounded-lg text-sm font-medium transition ${activeTab === t.id ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </header>
+
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 py-8 space-y-6">
+            
+            {activeTab === 'dashboard' && (
+              <div className="space-y-6">
+                <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Dashboard de Qualidade de Água</h1>
+                    <p className="text-sm text-gray-500">Acompanhamento gráfico em formato DD/MM/AAAA</p>
+                  </div>
+                  <div className="flex bg-gray-100 p-1 rounded-xl">
+                    <button
+                      onClick={() => setViewMode('chart')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'chart' ? 'bg-brand-500 text-white' : 'text-gray-600'}`}
+                    >
+                      Gráfico
+                    </button>
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${viewMode === 'table' ? 'bg-brand-500 text-white' : 'text-gray-600'}`}
+                    >
+                      Tabela
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {parametros.map(p => {
+                    const pLancamentos = lancamentos.filter(l => l.parameterId === p.id).sort((a,b) => new Date(a.date) - new Date(b.date));
+                    const uniqueDates = Array.from(new Set(pLancamentos.map(l => l.date))).sort();
+
+                    return (
+                      <div key={p.id} className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
+                        <div className="flex justify-between border-b pb-3">
+                          <div>
+                            <h3 className="font-bold text-gray-900">{p.name}</h3>
+                            <p className="text-xs text-gray-500">Unidade: {p.unit} | Limites: {p.hasMin ? `${p.min} a ${p.max}` : `0 a ${p.max}`}</p>
+                          </div>
+                        </div>
+
+                        {pLancamentos.length === 0 ? (
+                          <p className="text-xs text-gray-400 text-center py-6">Sem lançamentos para este parâmetro.</p>
+                        ) : viewMode === 'chart' ? (
+                          <ChartCanvas parameter={p} data={pLancamentos} />
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-xs text-left border">
+                              <thead>
+                                <tr className="bg-gray-50">
+                                  <th className="p-2.5 border">Viveiro</th>
+                                  {uniqueDates.map(d => <th key={d} className="p-2.5 border text-center font-mono">{formatDateBR(d)}</th>)}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {viveiros.map(v => {
+                                  const vL = pLancamentos.filter(l => l.viveiroId === v.id);
+                                  if(vL.length === 0) return null;
+                                  return (
+                                    <tr key={v.id}>
+                                      <td className="p-2.5 border font-bold">{v.name}</td>
+                                      {uniqueDates.map(d => {
+                                        const entry = vL.find(l => l.date === d);
+                                        if(!entry) return <td key={d} className="p-2.5 border text-center text-gray-300">-</td>;
+                                        const isBelow = p.hasMin && entry.value < p.min;
+                                        const isAbove = entry.value > p.max;
+                                        return (
+                                          <td key={d} className="p-2.5 border text-center font-mono">
+                                            <span className={`px-2 py-0.5 rounded ${isBelow ? 'bg-amber-100 text-amber-800' : isAbove ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                                              {entry.value}
+                                            </span>
+                                          </td>
+                                        );
+                                      })}
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+          </main>
+        </div>
+      );
+    }
+
+    function ChartCanvas({ parameter, data }) {
+      const canvasRef = useRef(null);
+      const chartInstanceRef = useRef(null);
+
+      useEffect(() => {
+        if (!canvasRef.current) return;
+        const ctx = canvasRef.current.getContext('2d');
+
+        if (chartInstanceRef.current) {
+          chartInstanceRef.current.destroy();
+        }
+
+        const labels = data.map(d => formatDateBR(d.date));
+        const values = data.map(d => d.value);
+
+        chartInstanceRef.current = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: parameter.name + ' (' + parameter.unit + ')',
+              data: values,
+              borderColor: '#1A56DB',
+              backgroundColor: 'rgba(26, 86, 219, 0.1)',
+              borderWidth: 3,
+              tension: 0.3,
+              fill: true
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  title: function(context) {
+                    return 'Data: ' + context[0].label;
+                  }
+                }
+              },
+              legend: { display: false }
+            },
+            scales: { y: { beginAtZero: false } }
+          }
+        });
+
+        return () => {
+          if (chartInstanceRef.current) chartInstanceRef.current.destroy();
+        };
+      }, [data, parameter]);
+
+      return (
+        <div className="h-60 w-full">
+          <canvas ref={canvasRef}></canvas>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
