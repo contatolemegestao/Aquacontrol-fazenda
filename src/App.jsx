@@ -12,7 +12,8 @@ import {
   loadPovoamentosForUser, savePovoamentosForUser,
   loadParametrosForUser, saveParametrosForUser,
   loadLancamentosForUser, saveLancamentosForUser,
-  fetchAllFromSupabaseForUser
+  fetchAllFromSupabaseForUser,
+  seedInitialDataForLemeAccount
 } from './utils/storage';
 import { INITIAL_PARAMETERS } from './data/initialData';
 
@@ -26,7 +27,7 @@ export default function App() {
   const [parametros, setParametros] = useState(INITIAL_PARAMETERS);
   const [lancamentos, setLancamentos] = useState([]);
 
-  // 1. Verificar Sessão no Supabase Auth
+  // 1. Escuta de Autenticação Supabase Auth
   useEffect(() => {
     async function checkAuthSession() {
       if (supabase) {
@@ -55,39 +56,39 @@ export default function App() {
     }
   }, []);
 
-  // 2. Quando o usuário loga ou muda de conta, recarrega os dados ISOLADOS daquele e-mail
+  // 2. Carregar dados isolados quando o usuário loga
   useEffect(() => {
     if (!user) return;
 
     const email = user.email || '';
     const userId = user.id || '';
 
-    // Carregar do armazenamento local isolado primeiro
-    const localViv = loadViveirosForUser(email);
-    const localPov = loadPovoamentosForUser(email);
-    const localPar = loadParametrosForUser(email);
-    const localLan = loadLancamentosForUser(email);
+    async function loadUserData() {
+      // 1. Carregar local primeiro (rápido e offline)
+      const localViv = loadViveirosForUser(email);
+      const localPov = loadPovoamentosForUser(email);
+      const localPar = loadParametrosForUser(email);
+      const localLan = loadLancamentosForUser(email);
 
-    setViveiros(localViv);
-    setPovoamentos(localPov);
-    setParametros(localPar);
-    setLancamentos(localLan);
+      setViveiros(localViv);
+      setPovoamentos(localPov);
+      setParametros(localPar);
+      setLancamentos(localLan);
 
-    // Ajustar aba inicial: se for conta nova sem viveiros, vai para Cadastro de Viveiros
-    if (localViv.length === 0) {
-      setActiveTab('viveiros');
-    } else {
-      setActiveTab('dashboard');
-    }
+      // Ajustar aba inicial de acordo com o usuário
+      if (localViv.length === 0) {
+        setActiveTab('viveiros');
+      } else {
+        setActiveTab('dashboard');
+      }
 
-    // Buscar dados na nuvem filtrando pelo user_id do Supabase
-    async function syncCloudData() {
+      // 2. Tentar buscar dados na nuvem Supabase especificamente para este user_id
       const cloud = await fetchAllFromSupabaseForUser(userId);
-      if (cloud) {
-        if (cloud.viveiros && cloud.viveiros.length > 0) {
+      if (cloud && (cloud.viveiros || cloud.povoamentos || cloud.parametros || cloud.lancamentos)) {
+        if (cloud.viveiros) {
           setViveiros(cloud.viveiros);
         }
-        if (cloud.povoamentos && cloud.povoamentos.length > 0) {
+        if (cloud.povoamentos) {
           const mapped = cloud.povoamentos.map((p) => ({
             id: p.id,
             viveiroId: p.viveiro_id,
@@ -100,7 +101,7 @@ export default function App() {
           }));
           setPovoamentos(mapped);
         }
-        if (cloud.parametros && cloud.parametros.length > 0) {
+        if (cloud.parametros) {
           const mapped = cloud.parametros.map((p) => ({
             id: p.id,
             name: p.name,
@@ -112,7 +113,7 @@ export default function App() {
           }));
           setParametros(mapped);
         }
-        if (cloud.lancamentos && cloud.lancamentos.length > 0) {
+        if (cloud.lancamentos) {
           const mapped = cloud.lancamentos.map((l) => ({
             id: l.id,
             viveiroId: l.viveiro_id,
@@ -123,12 +124,20 @@ export default function App() {
           }));
           setLancamentos(mapped);
         }
+      } else if (email.toLowerCase() === 'contatolemegestao@gmail.com') {
+        // Se for a conta da Leme Gestao e o banco Supabase estiver vazio, semeia a planilha
+        const seeded = await seedInitialDataForLemeAccount(email, userId);
+        setViveiros(seeded.viveiros);
+        setPovoamentos(seeded.povoamentos);
+        setParametros(seeded.parametros);
+        setLancamentos(seeded.lancamentos);
       }
     }
-    syncCloudData();
+
+    loadUserData();
   }, [user]);
 
-  // 3. Salvar alterações isoladas para a conta logada
+  // 3. Salvar alterações isoladas por usuário
   useEffect(() => {
     if (user) {
       saveViveirosForUser(user.email, viveiros, user.id);
