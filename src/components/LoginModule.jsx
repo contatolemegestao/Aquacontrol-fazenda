@@ -33,7 +33,7 @@ export default function LoginModule({ onLoginSuccess }) {
       }
 
       if (isSignUp) {
-        // Criar Nova Conta no Supabase Auth com URL de redirecionamento para o AquaControl na Vercel
+        // Criar Nova Conta no Supabase Auth com URL de redirecionamento para a Vercel
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password: cleanPassword,
@@ -82,6 +82,8 @@ export default function LoginModule({ onLoginSuccess }) {
         translated = 'A senha deve ter no mínimo 6 caracteres.';
       } else if (translated.includes('Email not confirmed')) {
         translated = 'Seu e-mail ainda não foi confirmado. Acesse sua caixa de entrada (ou spam) e clique no link de ativação.';
+      } else if (translated.includes('email rate limit exceeded') || translated.includes('Rate limit exceeded')) {
+        translated = 'Limite temporário de e-mails do Supabase atingido por hora. Desative a confirmação de e-mail no painel do Supabase (Authentication -> Providers -> Email -> Desmarcar "Confirm email") para cadastrar na hora sem limites.';
       }
       setErrorMsg(translated);
     } finally {
