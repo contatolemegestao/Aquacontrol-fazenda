@@ -26,100 +26,59 @@ export default function LoginModule({ onLoginSuccess }) {
     }
 
     try {
-      if (supabase) {
-        if (isSignUp) {
-          try {
-            const { data, error } = await supabase.auth.signUp({
-              email: cleanEmail,
-              password: cleanPassword
-            });
+      if (!supabase) {
+        setErrorMsg('Serviço de autenticação temporariamente indisponível.');
+        setLoading(false);
+        return;
+      }
 
-            if (error) {
-              // Se for erro de rede/fetch, realiza o cadastro local transparente
-              if (error.message?.includes('fetch') || error.message?.includes('Failed')) {
-                onLoginSuccess({
-                  id: `user-${Date.now()}`,
-                  email: cleanEmail
-                });
-                return;
-              }
-              throw error;
-            }
+      if (isSignUp) {
+        // Criar Nova Conta estritamente no Supabase Auth
+        const { data, error } = await supabase.auth.signUp({
+          email: cleanEmail,
+          password: cleanPassword
+        });
 
-            if (data?.user) {
-              // Se o Supabase auto-confirmar ou logar
-              if (data.session) {
-                onLoginSuccess(data.user);
-                return;
-              }
-              setSuccessMsg('Conta criada com sucesso! Realizando login...');
-              setTimeout(() => {
-                onLoginSuccess(data.user);
-              }, 1000);
-              return;
-            }
-          } catch (signUpErr) {
-            // Em caso de falha de rede ou CORS no Supabase, loga o usuário localmente sem bloquear
-            if (signUpErr.message?.includes('fetch') || signUpErr.message?.includes('Failed')) {
-              onLoginSuccess({
-                id: `user-${Date.now()}`,
-                email: cleanEmail
-              });
-              return;
-            }
-            throw signUpErr;
+        if (error) {
+          throw error;
+        }
+
+        if (data?.user) {
+          if (data.session) {
+            onLoginSuccess(data.user);
+            return;
           }
-        } else {
-          // Fazer Login
-          try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-              email: cleanEmail,
-              password: cleanPassword
-            });
-
-            if (error) {
-              // Fallback para login da Leme Gestao ou erro de conexão
-              if (
-                cleanEmail.toLowerCase() === 'contatolemegestao@gmail.com' ||
-                error.message?.includes('fetch') ||
-                error.message?.includes('Failed')
-              ) {
-                onLoginSuccess({
-                  id: `user-${Date.now()}`,
-                  email: cleanEmail
-                });
-                return;
-              }
-              throw error;
-            }
-
-            if (data?.session) {
-              onLoginSuccess(data.session.user);
-              return;
-            }
-          } catch (signInErr) {
-            if (signInErr.message?.includes('fetch') || signInErr.message?.includes('Failed')) {
-              onLoginSuccess({
-                id: `user-${Date.now()}`,
-                email: cleanEmail
-              });
-              return;
-            }
-            throw signInErr;
-          }
+          setSuccessMsg('Conta criada com sucesso no banco de dados! Você já pode fazer login.');
+          setIsSignUp(false);
+          return;
         }
       } else {
-        // Fallback local caso Supabase não esteja conectado
-        onLoginSuccess({
-          id: `user-${Date.now()}`,
-          email: cleanEmail
+        // Fazer Login estritamente no Supabase Auth
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: cleanEmail,
+          password: cleanPassword
         });
+
+        if (error) {
+          throw error;
+        }
+
+        if (data?.session && data?.user) {
+          onLoginSuccess(data.user);
+          return;
+        }
       }
     } catch (err) {
-      console.error('Erro na autenticação:', err);
-      setErrorMsg(
-        err.message || 'Falha ao autenticar. Verifique suas credenciais e tente novamente.'
-      );
+      console.error('Erro de Autenticação Supabase:', err);
+      let translated = err.message || 'Falha ao autenticar.';
+      if (translated.includes('Invalid login credentials')) {
+        translated = 'E-mail ou senha incorretos.';
+      } else if (translated.includes('User already registered')) {
+        translated = 'Este e-mail já está cadastrado. Faça login.';
+      } else if (translated.includes('Password should be at least')) {
+        translated = 'A senha deve ter no mínimo 6 caracteres.';
+      }
+      setErrorMsg(translated);
     } finally {
       setLoading(false);
     }
@@ -163,7 +122,7 @@ export default function LoginModule({ onLoginSuccess }) {
             </div>
           )}
 
-          {/* Formulário */}
+          {/* Formulário Estrito */}
           <form onSubmit={handleAuth} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
@@ -204,7 +163,7 @@ export default function LoginModule({ onLoginSuccess }) {
               disabled={loading}
               className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 mt-2"
             >
-              <span>{loading ? 'Processando...' : isSignUp ? 'Criar Nova Conta' : 'Entrar no Sistema'}</span>
+              <span>{loading ? 'Verificando...' : isSignUp ? 'Criar Nova Conta' : 'Entrar no Sistema'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
