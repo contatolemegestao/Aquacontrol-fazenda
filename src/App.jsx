@@ -23,7 +23,7 @@ export default function App() {
   // Garantir que a lista de lançamentos possua o histórico completo (168 lançamentos)
   const [lancamentos, setLancamentos] = useState(() => {
     const loaded = loadLancamentos();
-    if (!loaded || loaded.length < 100) {
+    if (!loaded || loaded.length < 50) {
       saveLancamentos(INITIAL_LANCAMENTOS);
       return INITIAL_LANCAMENTOS;
     }
@@ -90,6 +90,7 @@ export default function App() {
         {activeTab === 'dashboard' && (
           <DashboardModule
             viveiros={viveiros}
+            povoamentos={povoamentos}
             parametros={parametros}
             lancamentos={lancamentos}
           />
