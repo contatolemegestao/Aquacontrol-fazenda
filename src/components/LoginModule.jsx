@@ -33,10 +33,13 @@ export default function LoginModule({ onLoginSuccess }) {
       }
 
       if (isSignUp) {
-        // Criar Nova Conta estritamente no Supabase Auth
+        // Criar Nova Conta no Supabase Auth com URL de redirecionamento para o AquaControl na Vercel
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
-          password: cleanPassword
+          password: cleanPassword,
+          options: {
+            emailRedirectTo: 'https://aquacontrol-fazenda.vercel.app/'
+          }
         });
 
         if (error) {
@@ -48,7 +51,7 @@ export default function LoginModule({ onLoginSuccess }) {
             onLoginSuccess(data.user);
             return;
           }
-          setSuccessMsg('Conta criada com sucesso no banco de dados! Você já pode fazer login.');
+          setSuccessMsg('Conta criada com sucesso! Acesse o e-mail cadastrado e clique no link de confirmação para ativar seu acesso.');
           setIsSignUp(false);
           return;
         }
@@ -77,6 +80,8 @@ export default function LoginModule({ onLoginSuccess }) {
         translated = 'Este e-mail já está cadastrado. Faça login.';
       } else if (translated.includes('Password should be at least')) {
         translated = 'A senha deve ter no mínimo 6 caracteres.';
+      } else if (translated.includes('Email not confirmed')) {
+        translated = 'Seu e-mail ainda não foi confirmado. Acesse sua caixa de entrada (ou spam) e clique no link de ativação.';
       }
       setErrorMsg(translated);
     } finally {
