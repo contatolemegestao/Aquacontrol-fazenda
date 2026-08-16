@@ -3,7 +3,8 @@ import {
   BarChart3,
   Table as TableIcon,
   Filter,
-  Activity
+  Activity,
+  Tag
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -28,7 +29,7 @@ const formatDateBR = (isoDateStr) => {
   return isoDateStr;
 };
 
-// Paleta de cores distintas para cada viveiro no gráfico consolidado
+// Paleta de cores distintas para cada viveiro/lote no gráfico consolidado
 const VIVEIRO_COLORS = [
   '#1A56DB', // Azul Principal
   '#10B981', // Verde Esmeralda
@@ -41,6 +42,7 @@ const VIVEIRO_COLORS = [
 
 export default function DashboardModule({
   viveiros,
+  povoamentos = [],
   parametros,
   lancamentos
 }) {
@@ -49,6 +51,19 @@ export default function DashboardModule({
 
   // Filtro por viveiro ('all' para todos os viveiros ou ID do viveiro)
   const [selectedViveiroId, setSelectedViveiroId] = useState('all');
+
+  // Filtro por lote ('all' para todos os lotes ou ID do povoamento)
+  const [selectedPovoamentoId, setSelectedPovoamentoId] = useState('all');
+
+  // Lotes disponíveis conforme o viveiro selecionado
+  const lotesDisponiveis = selectedViveiroId === 'all'
+    ? povoamentos
+    : povoamentos.filter((p) => p.viveiroId === selectedViveiroId);
+
+  const handleViveiroChange = (vId) => {
+    setSelectedViveiroId(vId);
+    setSelectedPovoamentoId('all'); // Resetar o filtro de lote para "Todos" ao mudar o viveiro
+  };
 
   return (
     <div className="space-y-6">
@@ -61,7 +76,7 @@ export default function DashboardModule({
               Dashboard de Qualidade de Água
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Acompanhe a evolução histórica dos parâmetros de cada viveiro em gráficos ou tabelas independentes.
+              Acompanhe a evolução histórica dos parâmetros por viveiro e lote em gráficos ou tabelas.
             </p>
           </div>
 
@@ -95,23 +110,47 @@ export default function DashboardModule({
           </div>
         </div>
 
-        {/* Filtro por viveiro */}
-        <div className="pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
-            <Filter className="w-4 h-4 text-brand-500" />
-            <span>Filtrar Viveiro:</span>
-            <select
-              value={selectedViveiroId}
-              onChange={(e) => setSelectedViveiroId(e.target.value)}
-              className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="all">Todos os Viveiros (Consolidado)</option>
-              {viveiros.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
+        {/* Filtros por Viveiro e por Lote */}
+        <div className="pt-3 border-t border-gray-100 flex items-center justify-between flex-wrap gap-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 font-medium">
+            <div className="flex items-center gap-2">
+              <Filter className="w-4 h-4 text-brand-500" />
+              <span>Viveiro:</span>
+              <select
+                value={selectedViveiroId}
+                onChange={(e) => handleViveiroChange(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">Todos os Viveiros (Consolidado)</option>
+                {viveiros.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* SELETOR DE LOTE COM BADGES ATIVO / FINALIZADO */}
+            <div className="flex items-center gap-2">
+              <Tag className="w-4 h-4 text-brand-500" />
+              <span>Lote:</span>
+              <select
+                value={selectedPovoamentoId}
+                onChange={(e) => setSelectedPovoamentoId(e.target.value)}
+                className="px-3 py-1.5 rounded-lg border border-gray-300 bg-white text-sm font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">Todos os Lotes</option>
+                {lotesDisponiveis.map((p) => {
+                  const viv = viveiros.find((v) => v.id === p.viveiroId);
+                  const isAtivo = p.status === 'ativo';
+                  return (
+                    <option key={p.id} value={p.id}>
+                      {isAtivo ? '🟢' : '⚪'} {viv ? `${viv.name} - ` : ''}{p.numeroLote || 'Lote'} ({isAtivo ? 'Ativo' : 'Finalizado'})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
           </div>
 
           <div className="text-xs text-gray-500 font-medium">
@@ -123,13 +162,14 @@ export default function DashboardModule({
       {/* RENDERIZAÇÃO INDEPENDENTE PARA CADA PARÂMETRO */}
       <div className="space-y-6">
         {parametros.map((param) => {
-          // Lançamentos filtrados para este parâmetro
+          // Lançamentos filtrados por Viveiro, Lote e Parâmetro
           const paramLancamentos = lancamentos
             .filter((l) => l.parameterId === param.id)
             .filter((l) => selectedViveiroId === 'all' || l.viveiroId === selectedViveiroId)
+            .filter((l) => selectedPovoamentoId === 'all' || l.povoamentoId === selectedPovoamentoId)
             .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-          // Viveiros que possuem medições para este parâmetro
+          // Viveiros que possuem medições para este parâmetro no filtro atual
           const viveirosComDados = viveiros.filter((v) =>
             paramLancamentos.some((l) => l.viveiroId === v.id)
           );
@@ -142,8 +182,8 @@ export default function DashboardModule({
           // Montar a estrutura de dados para o Recharts (uma linha por viveiro se "all" estiver selecionado)
           const chartData = uniqueDates.map((dateStr) => {
             const dataPoint = {
-              date: formatDateBR(dateStr).substring(0, 5), // DD/MM para eixo X
-              formattedDate: formatDateBR(dateStr), // DD/MM/AAAA para tooltip
+              date: formatDateBR(dateStr).substring(0, 5),
+              formattedDate: formatDateBR(dateStr),
               fullDate: dateStr
             };
 
@@ -200,7 +240,7 @@ export default function DashboardModule({
                 <div className="py-8 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
                   <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm font-medium text-gray-500">
-                    Sem lançamentos registrados para o parâmetro {param.name}.
+                    Sem lançamentos para este filtro de Viveiro/Lote.
                   </p>
                 </div>
               ) : viewMode === 'chart' ? (

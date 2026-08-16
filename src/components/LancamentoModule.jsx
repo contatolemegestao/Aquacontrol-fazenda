@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FilePlus2, CheckCircle2, AlertCircle, Plus, ArrowDownCircle, ArrowUpCircle, Trash2 } from 'lucide-react';
+import { FilePlus2, CheckCircle2, AlertCircle, Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Tag } from 'lucide-react';
 
 export default function LancamentoModule({
   viveiros,
@@ -8,14 +8,21 @@ export default function LancamentoModule({
   lancamentos,
   setLancamentos
 }) {
-  // Filtrar APENAS viveiros que possuem povoamento ATIVO no momento
-  const viveirosAtivos = viveiros.filter((v) =>
-    povoamentos.some((p) => p.viveiroId === v.id && p.status === 'ativo')
+  // Estado do viveiro selecionado
+  const [selectedViveiroId, setSelectedViveiroId] = useState(
+    viveiros.length > 0 ? viveiros[0].id : ''
   );
 
-  const [selectedViveiroId, setSelectedViveiroId] = useState(
-    viveirosAtivos.length > 0 ? viveirosAtivos[0].id : ''
+  // Lotes pertencentes ao viveiro selecionado (tanto ativos quanto finalizados)
+  const lotesDoViveiro = povoamentos.filter(
+    (p) => p.viveiroId === selectedViveiroId
   );
+
+  // Estado do lote selecionado (povoamentoId)
+  const [selectedPovoamentoId, setSelectedPovoamentoId] = useState(() => {
+    return lotesDoViveiro.length > 0 ? lotesDoViveiro[0].id : '';
+  });
+
   const [selectedParamId, setSelectedParamId] = useState(
     parametros.length > 0 ? parametros[0].id : ''
   );
@@ -31,6 +38,17 @@ export default function LancamentoModule({
     setTimeout(() => {
       setToastMsg('');
     }, 4000);
+  };
+
+  // Quando o viveiro muda, atualiza o lote selecionado para o primeiro lote daquele viveiro
+  const handleViveiroChange = (vivId) => {
+    setSelectedViveiroId(vivId);
+    const lotes = povoamentos.filter((p) => p.viveiroId === vivId);
+    if (lotes.length > 0) {
+      setSelectedPovoamentoId(lotes[0].id);
+    } else {
+      setSelectedPovoamentoId('');
+    }
   };
 
   // Parâmetro Selecionado
@@ -72,7 +90,11 @@ export default function LancamentoModule({
     setErrorMsg('');
 
     if (!selectedViveiroId) {
-      setErrorMsg('Selecione um viveiro com povoamento ativo para registrar o lançamento.');
+      setErrorMsg('Selecione um viveiro para registrar o lançamento.');
+      return;
+    }
+    if (!selectedPovoamentoId) {
+      setErrorMsg('Selecione um lote para registrar o lançamento.');
       return;
     }
     if (!selectedParamId) {
@@ -91,6 +113,7 @@ export default function LancamentoModule({
     const newLancamento = {
       id: `l-${Date.now()}`,
       viveiroId: selectedViveiroId,
+      povoamentoId: selectedPovoamentoId,
       parameterId: selectedParamId,
       date,
       value: numValue,
@@ -124,10 +147,10 @@ export default function LancamentoModule({
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <FilePlus2 className="w-7 h-7 text-brand-500" />
-            Lançamento Diário de Parâmetros
+            Lançamento Diário por Lote
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Registre medições da água selecionando um viveiro ativo, parâmetro, data e o valor numérico.
+            Registre medições selecionando o viveiro, o lote de cultivo (ativo ou finalizado) e o valor do parâmetro.
           </p>
         </div>
         <div className="bg-brand-50 px-4 py-2 rounded-xl text-brand-700 text-sm font-semibold flex items-center gap-2 self-start md:self-auto">
@@ -150,30 +173,51 @@ export default function LancamentoModule({
         )}
 
         <form onSubmit={handleSaveLancamento} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Seletor de Viveiro - Exibe APENAS Viveiros Povoados Ativos */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Seletor 1: Viveiro */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Viveiro (Apenas com Povoamento Ativo)
+                Viveiro
               </label>
               <select
                 value={selectedViveiroId}
-                onChange={(e) => setSelectedViveiroId(e.target.value)}
+                onChange={(e) => handleViveiroChange(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none bg-white transition"
               >
-                {viveirosAtivos.length === 0 ? (
-                  <option value="">-- NENHUM VIVEIRO COM POVOAMENTO ATIVO --</option>
+                {viveiros.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Seletor 2: Lote do Viveiro (Ativos e Finalizados com badges) */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                Lote de Cultivo
+              </label>
+              <select
+                value={selectedPovoamentoId}
+                onChange={(e) => setSelectedPovoamentoId(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none bg-white font-medium transition"
+              >
+                {lotesDoViveiro.length === 0 ? (
+                  <option value="">-- Nenhum Lote neste Viveiro --</option>
                 ) : (
-                  viveirosAtivos.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {v.name}
-                    </option>
-                  ))
+                  lotesDoViveiro.map((p) => {
+                    const isAtivo = p.status === 'ativo';
+                    return (
+                      <option key={p.id} value={p.id}>
+                        {isAtivo ? '🟢' : '⚪'} {p.numeroLote || 'Lote'} ({isAtivo ? 'Ativo' : 'Finalizado'})
+                      </option>
+                    );
+                  })
                 )}
               </select>
-              {viveirosAtivos.length === 0 && (
+              {lotesDoViveiro.length === 0 && (
                 <p className="text-xs text-amber-600 mt-1">
-                  Não há viveiros povoados ativos. Realize o povoamento na aba 'Povoamento'.
+                  Cadastre um povoamento para este viveiro na aba 'Povoamento'.
                 </p>
               )}
             </div>
@@ -181,7 +225,7 @@ export default function LancamentoModule({
             {/* Seletor de Parâmetro Cadastrado */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Parâmetro Cadastrado
+                Parâmetro
               </label>
               <select
                 value={selectedParamId}
@@ -199,7 +243,7 @@ export default function LancamentoModule({
             {/* Campo Data */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Data do Lançamento
+                Data
               </label>
               <input
                 type="date"
@@ -212,7 +256,7 @@ export default function LancamentoModule({
             {/* Campo Unidade (Readonly) */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Unidade Cadastrada
+                Unidade
               </label>
               <input
                 type="text"
@@ -249,7 +293,7 @@ export default function LancamentoModule({
             <div>
               <button
                 type="submit"
-                disabled={viveirosAtivos.length === 0}
+                disabled={lotesDoViveiro.length === 0}
                 className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-md shadow-brand-500/20"
               >
                 <Plus className="w-4 h-4" />
@@ -288,6 +332,7 @@ export default function LancamentoModule({
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   <th className="px-6 py-3.5">Data</th>
                   <th className="px-6 py-3.5">Viveiro</th>
+                  <th className="px-6 py-3.5">Lote</th>
                   <th className="px-6 py-3.5">Parâmetro</th>
                   <th className="px-6 py-3.5">Valor Medido</th>
                   <th className="px-6 py-3.5">Avaliação</th>
@@ -297,8 +342,10 @@ export default function LancamentoModule({
               <tbody className="divide-y divide-gray-100 text-sm">
                 {lancamentos.map((l) => {
                   const viv = viveiros.find((v) => v.id === l.viveiroId);
+                  const pov = povoamentos.find((p) => p.id === l.povoamentoId);
                   const par = parametros.find((p) => p.id === l.parameterId);
                   const alert = getStatusAlert(par, l.value);
+                  const isAtivo = pov ? pov.status === 'ativo' : false;
 
                   return (
                     <tr key={l.id} className="hover:bg-gray-50/80 transition-colors">
@@ -307,6 +354,15 @@ export default function LancamentoModule({
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         {viv ? viv.name : 'Viveiro Indefinido'}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-brand-700">
+                        {pov ? (
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-100 border border-gray-200">
+                            {isAtivo ? '🟢' : '⚪'} {pov.numeroLote || 'Lote'}
+                          </span>
+                        ) : (
+                          '-'
+                        )}
                       </td>
                       <td className="px-6 py-4 text-gray-800">
                         {par ? par.name : 'Parâmetro Indefinido'}

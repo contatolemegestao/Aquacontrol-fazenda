@@ -96,19 +96,19 @@ export const INITIAL_VIVEIROS = [
     id: 'viv-1',
     name: 'Viveiro 01 - Berçário',
     area: 5000,
-    createdAt: '2026-05-01'
+    createdAt: '2026-01-01'
   },
   {
     id: 'viv-2',
     name: 'Viveiro 02 - Engorda A',
     area: 12000,
-    createdAt: '2026-05-01'
+    createdAt: '2026-01-01'
   },
   {
     id: 'viv-3',
     name: 'Viveiro 03 - Engorda B',
     area: 15000,
-    createdAt: '2026-05-01'
+    createdAt: '2026-01-01'
   }
 ];
 
@@ -116,15 +116,28 @@ export const INITIAL_POVOAMENTOS = [
   {
     id: 'pov-1',
     viveiroId: 'viv-1',
-    dataPovoamento: '2026-05-15',
+    numeroLote: 'Lote 01/2026',
+    dataPovoamento: '2026-01-15',
     quantidade: 150000,
     densidade: 30,
+    status: 'finalizado',
+    dataFinalizacao: '2026-04-15',
+    createdAt: '2026-01-15'
+  },
+  {
+    id: 'pov-2',
+    viveiroId: 'viv-1',
+    numeroLote: 'Lote 02/2026',
+    dataPovoamento: '2026-05-15',
+    quantidade: 160000,
+    densidade: 32,
     status: 'ativo',
     createdAt: '2026-05-15'
   },
   {
-    id: 'pov-2',
+    id: 'pov-3',
     viveiroId: 'viv-2',
+    numeroLote: 'Lote 01/2026',
     dataPovoamento: '2026-05-15',
     quantidade: 180000,
     densidade: 15,
@@ -135,7 +148,7 @@ export const INITIAL_POVOAMENTOS = [
 
 export const INITIAL_LANCAMENTOS = [];
 
-// 1. Oxigênio Dissolvido (param-1): 60 lançamentos diários seguidos
+// 1. Oxigênio Dissolvido (param-1) para Viveiro 01 - Lote 02/2026 (Ativo): 60 lançamentos diários seguidos
 const O2_VALUES_60 = [
   5.5, 5.8, 6.2, 6.0, 5.4, 4.8, 4.2, 3.8, 3.5, 4.5,
   5.2, 5.9, 6.3, 6.8, 7.2, 7.0, 6.5, 5.9, 5.3, 4.6,
@@ -154,6 +167,7 @@ O2_VALUES_60.forEach((val, i) => {
   INITIAL_LANCAMENTOS.push({
     id: `l-o2-day-${i + 1}`,
     viveiroId: 'viv-1',
+    povoamentoId: 'pov-2', // Lote 02/2026 (Ativo)
     parameterId: 'param-1',
     date: dateStr,
     value: val,
@@ -161,7 +175,26 @@ O2_VALUES_60.forEach((val, i) => {
   });
 });
 
-// 2. Datas semanais cobrindo 3 meses para os demais 9 parâmetros
+// 2. Lançamentos históricos para Lote 01/2026 (Finalizado) do Viveiro 01
+const O2_VALUES_LOTE1 = [4.5, 5.2, 6.0, 5.8, 6.2, 4.2, 5.0, 6.5, 5.7, 6.1, 5.9, 6.3];
+const LOTE1_DATES = [
+  '2026-01-20', '2026-01-27', '2026-02-03', '2026-02-10',
+  '2026-02-17', '2026-02-24', '2026-03-03', '2026-03-10',
+  '2026-03-17', '2026-03-24', '2026-03-31', '2026-04-07'
+];
+O2_VALUES_LOTE1.forEach((val, i) => {
+  INITIAL_LANCAMENTOS.push({
+    id: `l-o2-lote1-${i + 1}`,
+    viveiroId: 'viv-1',
+    povoamentoId: 'pov-1', // Lote 01/2026 (Finalizado)
+    parameterId: 'param-1',
+    date: LOTE1_DATES[i],
+    value: val,
+    createdAt: `${LOTE1_DATES[i]}T08:00:00`
+  });
+});
+
+// 3. Lançamentos para os demais 9 parâmetros para Lote 02/2026 (Ativo)
 const WEEKLY_DATES = [
   '2026-05-20', '2026-05-27', '2026-06-03', '2026-06-10',
   '2026-06-17', '2026-06-24', '2026-07-01', '2026-07-08',
@@ -186,6 +219,7 @@ Object.keys(OTHER_PARAM_DATA).forEach((paramId) => {
     INITIAL_LANCAMENTOS.push({
       id: `l-${paramId}-w${weekIdx + 1}`,
       viveiroId: 'viv-1',
+      povoamentoId: 'pov-2', // Lote 02/2026 (Ativo)
       parameterId: paramId,
       date: WEEKLY_DATES[weekIdx],
       value: val,

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Fish, Plus, CheckCircle2, AlertCircle, Calculator, CheckSquare } from 'lucide-react';
+import { Fish, Plus, CheckCircle2, AlertCircle, Calculator, CheckSquare, Tag } from 'lucide-react';
 import { formatThousands, parseThousands, formatDensidade } from '../utils/formatters';
 
 export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos }) {
   const [selectedViveiroId, setSelectedViveiroId] = useState('');
+  const [numeroLote, setNumeroLote] = useState('');
   const [dataPovoamento, setDataPovoamento] = useState(
     new Date().toISOString().split('T')[0]
   );
@@ -43,6 +44,10 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
       setErrorMsg('Selecione um viveiro livre para povoar.');
       return;
     }
+    if (!numeroLote.trim()) {
+      setErrorMsg('Informe o Número do Lote (ex: Lote 01, Lote 02/2026).');
+      return;
+    }
     if (!dataPovoamento) {
       setErrorMsg('Informe a data do povoamento.');
       return;
@@ -55,6 +60,7 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
     const newPovoamento = {
       id: `pov-${Date.now()}`,
       viveiroId: selectedViveiroId,
+      numeroLote: numeroLote.trim(),
       dataPovoamento,
       quantidade: numQuantidade,
       densidade: rawDensidade,
@@ -64,6 +70,7 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
 
     setPovoamentos([newPovoamento, ...povoamentos]);
     setSelectedViveiroId('');
+    setNumeroLote('');
     setQuantidadeFormatted('');
     triggerToast('Povoamento cadastrado com sucesso!');
   };
@@ -126,7 +133,7 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
         )}
 
         <form onSubmit={handleSavePovoamento} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Seletor de Viveiro Disponível */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
@@ -151,22 +158,34 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
               )}
             </div>
 
+            {/* Número do Lote */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
+                Número do Lote
+              </label>
+              <input
+                type="text"
+                placeholder="Ex: Lote 01/2026"
+                value={numeroLote}
+                onChange={(e) => setNumeroLote(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm font-semibold outline-none transition"
+              />
+            </div>
+
             {/* Data do Povoamento */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
                 Data do Povoamento
               </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={dataPovoamento}
-                  onChange={(e) => setDataPovoamento(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition"
-                />
-              </div>
+              <input
+                type="date"
+                value={dataPovoamento}
+                onChange={(e) => setDataPovoamento(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition"
+              />
             </div>
 
-            {/* Quantidade Povoada (CAMARÕES) */}
+            {/* Quantidade Povoada (Camarões) com separador de milhar */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
                 Quantidade Povoada (Camarões)
@@ -220,7 +239,7 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
       {/* Tabela de Povoamentos (Ativos e Histórico) */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Histórico de Povoamentos</h2>
+          <h2 className="text-lg font-bold text-gray-900">Histórico de Povoamentos por Lote</h2>
         </div>
 
         {povoamentos.length === 0 ? (
@@ -234,9 +253,9 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold uppercase tracking-wider text-gray-500">
                   <th className="px-6 py-3.5">Viveiro</th>
+                  <th className="px-6 py-3.5">Número do Lote</th>
                   <th className="px-6 py-3.5">Data Povoamento</th>
                   <th className="px-6 py-3.5">Qtd Povoada</th>
-                  <th className="px-6 py-3.5">Área do Viveiro</th>
                   <th className="px-6 py-3.5">Densidade</th>
                   <th className="px-6 py-3.5">Status</th>
                   <th className="px-6 py-3.5 text-right">Ação</th>
@@ -252,27 +271,29 @@ export default function PovoamentoModule({ viveiros, povoamentos, setPovoamentos
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         {viv ? viv.name : 'Viveiro Removido'}
                       </td>
+                      <td className="px-6 py-4 font-bold text-brand-700 flex items-center gap-1.5">
+                        <Tag className="w-3.5 h-3.5 text-brand-500" />
+                        {p.numeroLote || 'Lote Indefinido'}
+                      </td>
                       <td className="px-6 py-4 text-gray-600">
                         {new Date(p.dataPovoamento + 'T00:00:00').toLocaleDateString('pt-BR')}
                       </td>
                       <td className="px-6 py-4 font-mono font-medium text-gray-800">
                         {p.quantidade.toLocaleString('pt-BR')}
                       </td>
-                      <td className="px-6 py-4 text-gray-600">
-                        {viv ? `${viv.area.toLocaleString('pt-BR')} m²` : '-'}
-                      </td>
                       <td className="px-6 py-4 font-mono font-bold text-brand-600">
                         {formatDensidade(p.densidade)} cam/m²
                       </td>
                       <td className="px-6 py-4">
                         {isAtivo ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                            Ciclo em Andamento
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                            🟢 Ativo
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                            Ciclo Finalizado
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+                            <span className="w-2 h-2 rounded-full bg-gray-400"></span>
+                            ⚪ Finalizado
                           </span>
                         )}
                       </td>

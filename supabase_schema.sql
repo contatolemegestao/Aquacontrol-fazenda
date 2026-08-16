@@ -1,5 +1,5 @@
 -- =======================================================
--- ESQUEMA DE BANCO DE DADOS SUPABASE - AQUACONTROL
+-- ESQUEMA DE BANCO DE DADOS SUPABASE - AQUACONTROL (MULTI-LOTE)
 -- Execute este script no SQL Editor do seu projeto Supabase
 -- =======================================================
 
@@ -11,16 +11,22 @@ CREATE TABLE IF NOT EXISTS public.viveiros (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 2. Tabela de Povoamentos (Ciclos)
+-- 2. Tabela de Povoamentos (Lotes)
 CREATE TABLE IF NOT EXISTS public.povoamentos (
   id TEXT PRIMARY KEY,
   viveiro_id TEXT REFERENCES public.viveiros(id) ON DELETE CASCADE,
+  numero_lote TEXT NOT NULL DEFAULT 'Lote 01',
   data_povoamento DATE NOT NULL,
   quantidade NUMERIC NOT NULL,
   densidade NUMERIC NOT NULL,
   status TEXT DEFAULT 'ativo' NOT NULL,
+  data_finalizacao DATE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Adicionar coluna numero_lote caso a tabela já existisse
+ALTER TABLE public.povoamentos ADD COLUMN IF NOT EXISTS numero_lote TEXT DEFAULT 'Lote 01';
+ALTER TABLE public.povoamentos ADD COLUMN IF NOT EXISTS data_finalizacao DATE;
 
 -- 3. Tabela de Parâmetros de Qualidade de Água
 CREATE TABLE IF NOT EXISTS public.parametros (
@@ -34,15 +40,19 @@ CREATE TABLE IF NOT EXISTS public.parametros (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. Tabela de Lançamentos Diários / Medições
+-- 4. Tabela de Lançamentos Diários / Medições por Lote
 CREATE TABLE IF NOT EXISTS public.lancamentos (
   id TEXT PRIMARY KEY,
   viveiro_id TEXT REFERENCES public.viveiros(id) ON DELETE CASCADE,
+  povoamento_id TEXT REFERENCES public.povoamentos(id) ON DELETE CASCADE,
   parameter_id TEXT REFERENCES public.parametros(id) ON DELETE CASCADE,
   date DATE NOT NULL,
   value NUMERIC NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Adicionar coluna povoamento_id caso a tabela já existisse
+ALTER TABLE public.lancamentos ADD COLUMN IF NOT EXISTS povoamento_id TEXT REFERENCES public.povoamentos(id) ON DELETE CASCADE;
 
 -- Desabilitar RLS ou permitir acesso de leitura/escrita pública com a Anon Key
 ALTER TABLE public.viveiros DISABLE ROW LEVEL SECURITY;

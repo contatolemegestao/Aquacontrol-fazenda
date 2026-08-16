@@ -7,10 +7,10 @@ import {
 } from '../data/initialData';
 
 const KEYS = {
-  VIVEIROS: 'aqua_control_viveiros_v168',
-  POVOAMENTOS: 'aqua_control_povoamentos_v168',
-  PARAMETROS: 'aqua_control_parametros_v168',
-  LANCAMENTOS: 'aqua_control_lancamentos_v168'
+  VIVEIROS: 'aqua_control_viveiros_lote_v1',
+  POVOAMENTOS: 'aqua_control_povoamentos_lote_v1',
+  PARAMETROS: 'aqua_control_parametros_lote_v1',
+  LANCAMENTOS: 'aqua_control_lancamentos_lote_v1'
 };
 
 export const getStorageData = (key, fallbackData) => {
@@ -64,7 +64,7 @@ export const saveParametros = (data) => setStorageData(KEYS.PARAMETROS, data);
 
 export const loadLancamentos = () => {
   const data = getStorageData(KEYS.LANCAMENTOS, null);
-  if (!data || !Array.isArray(data) || data.length < 100) {
+  if (!data || !Array.isArray(data) || data.length < 50) {
     setStorageData(KEYS.LANCAMENTOS, INITIAL_LANCAMENTOS);
     return INITIAL_LANCAMENTOS;
   }
@@ -72,29 +72,7 @@ export const loadLancamentos = () => {
 };
 export const saveLancamentos = (data) => setStorageData(KEYS.LANCAMENTOS, data);
 
-// --- INTEGRAÇÃO ASSÍNCRONA COM SUPABASE ---
-export const fetchAllFromSupabase = async () => {
-  if (!supabase) return null;
-  try {
-    const [vivRes, povRes, parRes, lanRes] = await Promise.all([
-      supabase.from('viveiros').select('*'),
-      supabase.from('povoamentos').select('*'),
-      supabase.from('parametros').select('*'),
-      supabase.from('lancamentos').select('*')
-    ]);
-
-    return {
-      viveiros: vivRes.data && vivRes.data.length > 0 ? vivRes.data : null,
-      povoamentos: povRes.data && povRes.data.length > 0 ? povRes.data : null,
-      parametros: parRes.data && parRes.data.length > 0 ? parRes.data : null,
-      lancamentos: lanRes.data && lanRes.data.length > 0 ? lanRes.data : null
-    };
-  } catch (e) {
-    console.warn('Supabase não conectado ou inacessível:', e);
-    return null;
-  }
-};
-
+// Reset completo para dados de fábrica
 export const resetToDefaultData = () => {
   localStorage.clear();
   window.location.reload();
