@@ -6,8 +6,7 @@ import {
   Activity,
   Tag,
   Sliders,
-  Sparkles,
-  Clock
+  Sparkles
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -101,7 +100,7 @@ export default function DashboardModule({
     'pair-sal-no2': 'both'
   });
 
-  // Estado do Gráfico Livre (Análise Comparativa Personalizada)
+  // Estado do Gráfico/Tabela Livre (Análise Comparativa Personalizada)
   const [customParam1Id, setCustomParam1Id] = useState(parametros[0]?.id || '');
   const [customParam2Id, setCustomParam2Id] = useState(parametros[1]?.id || '');
   const [customVisibility, setCustomVisibility] = useState('both');
@@ -239,11 +238,13 @@ export default function DashboardModule({
         </div>
       </div>
 
-      {/* 📊 OS 5 GRÁFICOS ESTRATÉGICOS CONSOLIDADOS */}
+      {/* 📊 OS 5 GRÁFICOS / TABELAS ESTRATÉGICOS CONSOLIDADOS */}
       <div className="space-y-6">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 pt-2">
           <Sliders className="w-5 h-5 text-brand-500" />
-          Gráficos Estratégicos Consolidados (Pares de Parâmetros)
+          {viewMode === 'chart'
+            ? 'Gráficos Estratégicos Consolidados (Pares de Parâmetros)'
+            : 'Tabelas Estratégicas Consolidadas (Pares de Parâmetros)'}
         </h2>
 
         {STRATEGIC_PAIRS.map((pair) => {
@@ -257,7 +258,7 @@ export default function DashboardModule({
               key={pair.id}
               className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 hover:border-brand-200 transition-colors"
             >
-              {/* Header do Gráfico Par */}
+              {/* Header do Gráfico/Tabela Par */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-3">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -269,22 +270,24 @@ export default function DashboardModule({
                   </p>
                 </div>
 
-                {/* CAIXINHA DE SELEÇÃO NO CANTO SUPERIOR DIREITO */}
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <span className="text-xs text-gray-500 font-medium hidden sm:inline">Exibir:</span>
-                  <select
-                    value={currentVis}
-                    onChange={(e) => handlePairVisibilityChange(pair.id, e.target.value)}
-                    className="px-3 py-1.5 rounded-xl border border-gray-300 bg-gray-50 text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
-                  >
-                    <option value="both">Ver Ambos os Parâmetros</option>
-                    <option value="param1">Apenas {p1 ? p1.name : 'Parâmetro 1'}</option>
-                    <option value="param2">Apenas {p2 ? p2.name : 'Parâmetro 2'}</option>
-                  </select>
-                </div>
+                {/* CAIXINHA DE SELEÇÃO EXIBIDA APENAS NO MODO GRÁFICO (REMOVIDA NA TABELA CONFORME SOLICITADO) */}
+                {viewMode === 'chart' && (
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <span className="text-xs text-gray-500 font-medium hidden sm:inline">Exibir:</span>
+                    <select
+                      value={currentVis}
+                      onChange={(e) => handlePairVisibilityChange(pair.id, e.target.value)}
+                      className="px-3 py-1.5 rounded-xl border border-gray-300 bg-gray-50 text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+                    >
+                      <option value="both">Ver Ambos os Parâmetros</option>
+                      <option value="param1">Apenas {p1 ? p1.name : 'Parâmetro 1'}</option>
+                      <option value="param2">Apenas {p2 ? p2.name : 'Parâmetro 2'}</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
-              {/* GRÁFICO DE EIXO DUPLO OU TABELA */}
+              {/* CONTEÚDO: GRÁFICO DE EIXO DUPLO OU TABELA */}
               {data.length === 0 ? (
                 <div className="py-8 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
                   <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
@@ -360,13 +363,13 @@ export default function DashboardModule({
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                         <th className="px-4 py-3">Data & Hora</th>
-                        {p1 && <th className="px-4 py-3 font-semibold">{p1.name} ({p1.unit})</th>}
-                        {p2 && <th className="px-4 py-3 font-semibold">{p2.name} ({p2.unit})</th>}
+                        {p1 && <th className="px-4 py-3 font-semibold text-blue-700">{p1.name.toUpperCase()} ({p1.unit})</th>}
+                        {p2 && <th className="px-4 py-3 font-semibold text-rose-700">{p2.name.toUpperCase()} ({p2.unit})</th>}
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-sm">
+                    <tbody className="divide-y divide-gray-100 text-sm font-mono">
                       {data.map((row, i) => (
-                        <tr key={i} className="hover:bg-gray-50/80 font-mono">
+                        <tr key={i} className="hover:bg-gray-50/80">
                           <td className="px-4 py-3 text-gray-600 font-sans">
                             {row.formattedDate} {row.time && `às ${row.time}`}
                           </td>
@@ -383,43 +386,55 @@ export default function DashboardModule({
         })}
       </div>
 
-      {/* 🎛️ CARD DO GRÁFICO LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
-      <div className="bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white rounded-2xl p-6 shadow-xl border border-brand-500/20 space-y-4 mt-8">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+      {/* 🎛️ CARD DO GRÁFICO / TABELA LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
+      <div className={`rounded-2xl p-6 shadow-xl border space-y-4 mt-8 transition-colors ${
+        viewMode === 'chart'
+          ? 'bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white border-brand-500/20'
+          : 'bg-white text-gray-900 border-gray-200'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-200/20">
           <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              Análise Comparativa Personalizada (Gráfico Livre)
+            <h2 className={`text-lg font-bold flex items-center gap-2 ${viewMode === 'chart' ? 'text-white' : 'text-gray-900'}`}>
+              <Sparkles className={`w-5 h-5 ${viewMode === 'chart' ? 'text-amber-400' : 'text-brand-500'}`} />
+              {viewMode === 'chart'
+                ? 'Análise Comparativa Personalizada (Gráfico Livre)'
+                : 'Análise Comparativa Personalizada (Tabela Livre)'}
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Escolha quaisquer 2 parâmetros para analisar correlações livres no mesmo gráfico.
+            <p className={`text-xs mt-0.5 ${viewMode === 'chart' ? 'text-slate-400' : 'text-gray-500'}`}>
+              Escolha quaisquer 2 parâmetros para analisar correlações livres.
             </p>
           </div>
 
-          {/* Seletor de Visibilidade do Gráfico Livre */}
-          <div className="flex items-center gap-2">
-            <select
-              value={customVisibility}
-              onChange={(e) => setCustomVisibility(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="both">Exibir Ambos os Parâmetros</option>
-              <option value="p1">Apenas Parâmetro 1</option>
-              <option value="p2">Apenas Parâmetro 2</option>
-            </select>
-          </div>
+          {/* Seletor de Visibilidade do Gráfico Livre (APENAS NO MODO GRÁFICO) */}
+          {viewMode === 'chart' && (
+            <div className="flex items-center gap-2">
+              <select
+                value={customVisibility}
+                onChange={(e) => setCustomVisibility(e.target.value)}
+                className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="both">Exibir Ambos os Parâmetros</option>
+                <option value="p1">Apenas Parâmetro 1</option>
+                <option value="p2">Apenas Parâmetro 2</option>
+              </select>
+            </div>
+          )}
         </div>
 
-        {/* Controles de Seleção dos 2 Parâmetros */}
+        {/* Controles de Seleção dos 2 Parâmetros (FUNCIONA EM AMBOS OS MODOS) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Parâmetro 1 (Eixo Esquerdo)
+            <label className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${viewMode === 'chart' ? 'text-slate-400' : 'text-gray-600'}`}>
+              Parâmetro 1 (Eixo Esquerdo / Coluna 1)
             </label>
             <select
               value={customParam1Id}
               onChange={(e) => setCustomParam1Id(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+              className={`w-full px-4 py-2 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500 border ${
+                viewMode === 'chart'
+                  ? 'border-slate-700 bg-slate-800 text-white'
+                  : 'border-gray-300 bg-white text-gray-900'
+              }`}
             >
               {parametros.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -430,13 +445,17 @@ export default function DashboardModule({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Parâmetro 2 (Eixo Direito)
+            <label className={`block text-xs font-semibold uppercase tracking-wider mb-1 ${viewMode === 'chart' ? 'text-slate-400' : 'text-gray-600'}`}>
+              Parâmetro 2 (Eixo Direito / Coluna 2)
             </label>
             <select
               value={customParam2Id}
               onChange={(e) => setCustomParam2Id(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+              className={`w-full px-4 py-2 rounded-xl text-sm font-semibold outline-none focus:ring-2 focus:ring-brand-500 border ${
+                viewMode === 'chart'
+                  ? 'border-slate-700 bg-slate-800 text-white'
+                  : 'border-gray-300 bg-white text-gray-900'
+              }`}
             >
               {parametros.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -447,82 +466,114 @@ export default function DashboardModule({
           </div>
         </div>
 
-        {/* Gráfico do Card Livre */}
+        {/* CONTEÚDO DO CARD LIVRE: GRÁFICO OU TABELA LIVRE */}
         {(() => {
           const { data, p1, p2 } = buildDualParamChartData(customParam1Id, customParam2Id);
           if (!p1 || !p2 || data.length === 0) {
             return (
-              <div className="py-10 text-center text-slate-500 bg-slate-900/50 rounded-xl border border-slate-800">
-                <Activity className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+              <div className={`py-10 text-center rounded-xl border ${
+                viewMode === 'chart'
+                  ? 'text-slate-500 bg-slate-900/50 border-slate-800'
+                  : 'text-gray-400 bg-gray-50/50 border-gray-200'
+              }`}>
+                <Activity className="w-8 h-8 mx-auto mb-2 opacity-50" />
                 <p className="text-xs">Sem medições suficientes para os parâmetros selecionados.</p>
               </div>
             );
           }
 
-          const sameAxis = p1.unit === p2.unit;
-          const showP1 = customVisibility === 'both' || customVisibility === 'p1';
-          const showP2 = customVisibility === 'both' || customVisibility === 'p2';
+          if (viewMode === 'chart') {
+            const sameAxis = p1.unit === p2.unit;
+            const showP1 = customVisibility === 'both' || customVisibility === 'p1';
+            const showP2 = customVisibility === 'both' || customVisibility === 'p2';
 
+            return (
+              <div className="h-72 w-full pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} stroke="#475569" />
+                    <YAxis yAxisId="left" tick={{ fill: '#38bdf8', fontSize: 12 }} stroke="#38bdf8" />
+                    {!sameAxis && (
+                      <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f43f5e', fontSize: 12 }} stroke="#f43f5e" />
+                    )}
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const d = payload[0].payload;
+                          return (
+                            <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl text-white">
+                              <p className="text-slate-400 font-semibold border-b border-slate-800 pb-1">
+                                Data: <span className="font-mono text-white">{d.formattedDate}</span> {d.time && `às ${d.time}`}
+                              </p>
+                              {payload.map((entry) => (
+                                <div key={entry.name} className="flex items-center justify-between gap-3">
+                                  <span className="font-semibold" style={{ color: entry.color }}>
+                                    {entry.name}:
+                                  </span>
+                                  <span className="font-mono font-bold text-white">{entry.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '12px' }} />
+                    {showP1 && (
+                      <Line
+                        yAxisId="left"
+                        type="monotone"
+                        dataKey={p1.name}
+                        name={`${p1.name} (${p1.unit})`}
+                        stroke="#38bdf8"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: '#38bdf8' }}
+                        connectNulls
+                      />
+                    )}
+                    {showP2 && (
+                      <Line
+                        yAxisId={sameAxis ? 'left' : 'right'}
+                        type="monotone"
+                        dataKey={p2.name}
+                        name={`${p2.name} (${p2.unit})`}
+                        stroke="#f43f5e"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: '#f43f5e' }}
+                        connectNulls
+                      />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            );
+          }
+
+          /* TABELA LIVRE (MODO TABELA) */
           return (
-            <div className="h-72 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} stroke="#475569" />
-                  <YAxis yAxisId="left" tick={{ fill: '#38bdf8', fontSize: 12 }} stroke="#38bdf8" />
-                  {!sameAxis && (
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f43f5e', fontSize: 12 }} stroke="#f43f5e" />
-                  )}
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const d = payload[0].payload;
-                        return (
-                          <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl text-white">
-                            <p className="text-slate-400 font-semibold border-b border-slate-800 pb-1">
-                              Data: <span className="font-mono text-white">{d.formattedDate}</span> {d.time && `às ${d.time}`}
-                            </p>
-                            {payload.map((entry) => (
-                              <div key={entry.name} className="flex items-center justify-between gap-3">
-                                <span className="font-semibold" style={{ color: entry.color }}>
-                                  {entry.name}:
-                                </span>
-                                <span className="font-mono font-bold text-white">{entry.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '12px' }} />
-                  {showP1 && (
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey={p1.name}
-                      name={`${p1.name} (${p1.unit})`}
-                      stroke="#38bdf8"
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: '#38bdf8' }}
-                      connectNulls
-                    />
-                  )}
-                  {showP2 && (
-                    <Line
-                      yAxisId={sameAxis ? 'left' : 'right'}
-                      type="monotone"
-                      dataKey={p2.name}
-                      name={`${p2.name} (${p2.unit})`}
-                      stroke="#f43f5e"
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: '#f43f5e' }}
-                      connectNulls
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="overflow-x-auto border border-gray-200 rounded-xl">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-3">Data & Hora</th>
+                    <th className="px-4 py-3 font-semibold text-blue-700">{p1.name.toUpperCase()} ({p1.unit})</th>
+                    <th className="px-4 py-3 font-semibold text-rose-700">{p2.name.toUpperCase()} ({p2.unit})</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 text-sm font-mono">
+                  {data.map((row, i) => (
+                    <tr key={i} className="hover:bg-gray-50/80">
+                      <td className="px-4 py-3 text-gray-600 font-sans">
+                        {row.formattedDate} {row.time && `às ${row.time}`}
+                      </td>
+                      <td className="px-4 py-3 font-bold text-blue-700">{row[p1.name] ?? '-'}</td>
+                      <td className="px-4 py-3 font-bold text-rose-700">{row[p2.name] ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           );
         })()}
