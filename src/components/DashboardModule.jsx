@@ -7,8 +7,7 @@ import {
   Tag,
   Sliders,
   Sparkles,
-  CheckSquare,
-  Square
+  Layers
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -81,6 +80,18 @@ const STRATEGIC_PAIRS = [
   }
 ];
 
+// IDs de parâmetros que já fazem parte dos pares estratégicos principais
+const STRATEGIC_PARAM_IDS = new Set([
+  'param-1', // O2
+  'param-3', // Temp
+  'param-4', // Alc
+  'param-5', // Dur
+  'param-2', // pH
+  'param-6', // NH3
+  'param-9', // Sal
+  'param-8'  // NO2
+]);
+
 export default function DashboardModule({
   viveiros,
   povoamentos = [],
@@ -111,6 +122,9 @@ export default function DashboardModule({
     ? povoamentos
     : povoamentos.filter((p) => p.viveiroId === selectedViveiroId);
 
+  // Parâmetros individuais (que não fazem parte dos pares consolidados ou que o usuário deseja ver individualmente, ex: Transparência e NAT)
+  const individualParams = parametros.filter((p) => !STRATEGIC_PARAM_IDS.has(p.id) || p.id === 'param-10' || p.id === 'param-7');
+
   const handleViveiroChange = (vId) => {
     setSelectedViveiroId(vId);
     setSelectedPovoamentoId('all');
@@ -120,7 +134,6 @@ export default function DashboardModule({
     setPairCheckboxes((prev) => {
       const current = prev[pairId] || { showP1: true, showP2: true };
       const updated = { ...current, [paramKey]: !current[paramKey] };
-      // Se tentar desmarcar ambos, mantém o clicado ativo
       if (!updated.showP1 && !updated.showP2) {
         return prev;
       }
@@ -168,8 +181,31 @@ export default function DashboardModule({
     return { data, p1, p2 };
   };
 
+  // Montar dados para um único parâmetro individual (ex: Transparência, NAT, etc.)
+  const buildSingleParamChartData = (paramId) => {
+    const param = parametros.find((p) => p.id === paramId);
+    if (!param) return { data: [], param };
+
+    const filtered = lancamentos
+      .filter((l) => l.parameterId === paramId)
+      .filter((l) => selectedViveiroId === 'all' || l.viveiroId === selectedViveiroId)
+      .filter((l) => selectedPovoamentoId === 'all' || l.povoamentoId === selectedPovoamentoId)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const data = filtered.map((l) => ({
+      date: formatDateBR(l.date).substring(0, 5),
+      formattedDate: formatDateBR(l.date),
+      time: l.time || '',
+      value: l.value,
+      min: param.hasMin ? param.min : null,
+      max: param.max
+    }));
+
+    return { data, param };
+  };
+
   return (
-    <div className="space-y-6 font-['Inter',sans-serif]">
+    <div className="space-y-8 font-['Inter',sans-serif]">
       {/* Header & Seletor de Modo no Topo */}
       <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -179,7 +215,7 @@ export default function DashboardModule({
               Dashboard de Qualidade de Água
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Análise estratégica consolidada com gráficos duplos e comparativo personalizado por viveiro e lote.
+              Análise estratégica com gráficos cruzados, gráficos individuais por parâmetro e comparativo livre.
             </p>
           </div>
 
@@ -258,7 +294,7 @@ export default function DashboardModule({
         </div>
       </div>
 
-      {/* 📊 OS 5 GRÁFICOS / TABELAS ESTRATÉGICOS CONSOLIDADOS */}
+      {/* 📊 SEÇÃO 1: OS 5 GRÁFICOS / TABELAS ESTRATÉGICOS CONSOLIDADOS */}
       <div className="space-y-6">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 pt-2">
           <Sliders className="w-5 h-5 text-brand-500" />
@@ -288,7 +324,7 @@ export default function DashboardModule({
                   </p>
                 </div>
 
-                {/* BOTÕES CHECKBOXES INTERATIVOS NO CANTO SUPERIOR DIREITO (NOVO FORMATO INTUITIVO) */}
+                {/* BOTÕES CHECKBOXES INTERATIVOS NO CANTO SUPERIOR DIREITO */}
                 {viewMode === 'chart' && (
                   <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
                     {p1 && (
@@ -431,7 +467,107 @@ export default function DashboardModule({
         })}
       </div>
 
-      {/* 🎛️ CARD DO GRÁFICO / TABELA LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
+      {/* 📈 SEÇÃO 2: GRÁFICOS / TABELAS DE PARÂMETROS INDIVIDUAIS (EX: TRANSPARÊNCIA, NAT, ETC.) */}
+      <div className="space-y-6 pt-4">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <Layers className="w-5 h-5 text-brand-500" />
+          {viewMode === 'chart'
+            ? 'Gráficos de Parâmetros Individuais'
+            : 'Tabelas de Parâmetros Individuais'}
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {individualParams.map((param) => {
+            const { data } = buildSingleParamChartData(param.id);
+
+            return (
+              <div
+                key={param.id}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-3 hover:border-brand-200 transition-colors"
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
+                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                    {param.name}
+                  </h3>
+                  <span className="text-xs font-mono font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                    {param.unit}
+                  </span>
+                </div>
+
+                {data.length === 0 ? (
+                  <div className="py-6 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                    <p className="text-xs font-medium text-gray-500">Sem lançamentos para este parâmetro.</p>
+                  </div>
+                ) : viewMode === 'chart' ? (
+                  <div className="h-56 w-full pt-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={data} margin={{ top: 10, right: 15, left: -10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                        <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 10 }} stroke="#cbd5e1" />
+                        <YAxis tick={{ fill: '#059669', fontSize: 11 }} stroke="#059669" />
+                        <Tooltip
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const d = payload[0].payload;
+                              return (
+                                <div className="bg-white p-2.5 border border-gray-200 shadow-lg rounded-xl text-xs space-y-1">
+                                  <p className="text-gray-500 font-semibold">
+                                    Data: <span className="font-mono text-gray-900 font-bold">{d.formattedDate}</span> {d.time && `às ${d.time}`}
+                                  </p>
+                                  <p className="font-mono font-bold text-emerald-600">
+                                    {param.name}: {d.value} {param.unit}
+                                  </p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          name={`${param.name} (${param.unit})`}
+                          stroke="#10b981"
+                          strokeWidth={2.5}
+                          dot={{ r: 3.5, fill: '#10b981', strokeWidth: 1.5, stroke: '#ffffff' }}
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  /* MODO TABELA INDIVIDUAL */
+                  <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-200 font-semibold text-gray-500 uppercase tracking-wider">
+                          <th className="px-3 py-2.5">Data & Hora</th>
+                          <th className="px-3 py-2.5 text-right font-bold text-emerald-700">VALOR MEDIDO ({param.unit.toUpperCase()})</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100 font-mono">
+                        {data.map((row, i) => (
+                          <tr key={i} className="hover:bg-gray-50/80">
+                            <td className="px-3 py-2.5 text-gray-600 font-sans">
+                              {row.formattedDate} {row.time && `às ${row.time}`}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-bold text-emerald-700">
+                              {row.value} {param.unit}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 🎛️ SEÇÃO 3: CARD DO GRÁFICO / TABELA LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
       <div className={`rounded-2xl p-6 shadow-xl border space-y-4 mt-8 transition-colors ${
         viewMode === 'chart'
           ? 'bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white border-brand-500/20'
