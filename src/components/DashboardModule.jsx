@@ -4,7 +4,10 @@ import {
   Table as TableIcon,
   Filter,
   Activity,
-  Tag
+  Tag,
+  Sliders,
+  Sparkles,
+  Clock
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -14,7 +17,6 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  ReferenceLine,
   Legend
 } from 'recharts';
 
@@ -29,15 +31,53 @@ const formatDateBR = (isoDateStr) => {
   return isoDateStr;
 };
 
-// Paleta de cores distintas para cada viveiro/lote no gráfico consolidado
-const VIVEIRO_COLORS = [
-  '#1A56DB', // Azul Principal
-  '#10B981', // Verde Esmeralda
-  '#F59E0B', // Âmbar / Laranja
-  '#8B5CF6', // Roxo
-  '#EC4899', // Rosa
-  '#06B6D4', // Ciano
-  '#E11D48'  // Vermelho Rosa
+// Configuração dos 5 Pares Estratégicos de Parâmetros
+const STRATEGIC_PAIRS = [
+  {
+    id: 'pair-o2-temp',
+    title: 'Oxigênio Dissolvido (O2) x Temperatura',
+    param1Id: 'param-1',
+    param2Id: 'param-3',
+    sameAxis: false,
+    leftLabel: 'mg/L',
+    rightLabel: '°C'
+  },
+  {
+    id: 'pair-alc-dur',
+    title: 'Alcalinidade x Dureza',
+    param1Id: 'param-4',
+    param2Id: 'param-5',
+    sameAxis: true,
+    leftLabel: 'mg CaCO₃/L',
+    rightLabel: 'mg CaCO₃/L'
+  },
+  {
+    id: 'pair-alc-ph',
+    title: 'Alcalinidade x pH',
+    param1Id: 'param-4',
+    param2Id: 'param-2',
+    sameAxis: false,
+    leftLabel: 'mg CaCO₃/L',
+    rightLabel: 'pH'
+  },
+  {
+    id: 'pair-nh3-ph',
+    title: 'Amônia Tóxica (NH₃) x pH',
+    param1Id: 'param-6',
+    param2Id: 'param-2',
+    sameAxis: false,
+    leftLabel: 'mg/L',
+    rightLabel: 'pH'
+  },
+  {
+    id: 'pair-sal-no2',
+    title: 'Salinidade x Nitrito (NO₂⁻)',
+    param1Id: 'param-9',
+    param2Id: 'param-8',
+    sameAxis: false,
+    leftLabel: 'ppt',
+    rightLabel: 'mg/L'
+  }
 ];
 
 export default function DashboardModule({
@@ -46,27 +86,71 @@ export default function DashboardModule({
   parametros,
   lancamentos
 }) {
-  // Estado da caixa de seleção no topo: 'chart' (Gráfico) ou 'table' (Tabela)
   const [viewMode, setViewMode] = useState('chart');
 
-  // Filtro por viveiro ('all' para todos os viveiros ou ID do viveiro)
+  // Filtro por viveiro e por lote
   const [selectedViveiroId, setSelectedViveiroId] = useState('all');
-
-  // Filtro por lote ('all' para todos os lotes ou ID do povoamento)
   const [selectedPovoamentoId, setSelectedPovoamentoId] = useState('all');
 
-  // Lotes disponíveis conforme o viveiro selecionado
+  // Estado da visibilidade dos parâmetros em cada um dos 5 gráficos (both | param1 | param2)
+  const [pairVisibility, setPairVisibility] = useState({
+    'pair-o2-temp': 'both',
+    'pair-alc-dur': 'both',
+    'pair-alc-ph': 'both',
+    'pair-nh3-ph': 'both',
+    'pair-sal-no2': 'both'
+  });
+
+  // Estado do Gráfico Livre (Análise Comparativa Personalizada)
+  const [customParam1Id, setCustomParam1Id] = useState(parametros[0]?.id || '');
+  const [customParam2Id, setCustomParam2Id] = useState(parametros[1]?.id || '');
+  const [customVisibility, setCustomVisibility] = useState('both');
+
   const lotesDisponiveis = selectedViveiroId === 'all'
     ? povoamentos
     : povoamentos.filter((p) => p.viveiroId === selectedViveiroId);
 
   const handleViveiroChange = (vId) => {
     setSelectedViveiroId(vId);
-    setSelectedPovoamentoId('all'); // Resetar o filtro de lote para "Todos" ao mudar o viveiro
+    setSelectedPovoamentoId('all');
+  };
+
+  const handlePairVisibilityChange = (pairId, mode) => {
+    setPairVisibility((prev) => ({ ...prev, [pairId]: mode }));
+  };
+
+  // Montar dados combinados para um par de parâmetros
+  const buildDualParamChartData = (p1Id, p2Id) => {
+    const p1 = parametros.find((p) => p.id === p1Id);
+    const p2 = parametros.find((p) => p.id === p2Id);
+    if (!p1 || !p2) return { data: [], p1, p2 };
+
+    const filtered = lancamentos
+      .filter((l) => l.parameterId === p1Id || l.parameterId === p2Id)
+      .filter((l) => selectedViveiroId === 'all' || l.viveiroId === selectedViveiroId)
+      .filter((l) => selectedPovoamentoId === 'all' || l.povoamentoId === selectedPovoamentoId)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const uniqueDates = Array.from(new Set(filtered.map((l) => l.date))).sort();
+
+    const data = uniqueDates.map((dateStr) => {
+      const p1Match = filtered.find((l) => l.date === dateStr && l.parameterId === p1Id);
+      const p2Match = filtered.find((l) => l.date === dateStr && l.parameterId === p2Id);
+
+      return {
+        date: formatDateBR(dateStr).substring(0, 5),
+        formattedDate: formatDateBR(dateStr),
+        time: p1Match?.time || p2Match?.time || '',
+        [p1.name]: p1Match ? p1Match.value : null,
+        [p2.name]: p2Match ? p2Match.value : null
+      };
+    });
+
+    return { data, p1, p2 };
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-['Inter',sans-serif]">
       {/* Header & Seletor de Modo no Topo */}
       <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -76,7 +160,7 @@ export default function DashboardModule({
               Dashboard de Qualidade de Água
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Acompanhe a evolução histórica dos parâmetros por viveiro e lote em gráficos ou tabelas.
+              Análise estratégica consolidada com gráficos duplos e comparativo personalizado por viveiro e lote.
             </p>
           </div>
 
@@ -130,7 +214,7 @@ export default function DashboardModule({
               </select>
             </div>
 
-            {/* SELETOR DE LOTE COM BADGES ATIVO / FINALIZADO */}
+            {/* SELETOR DE LOTE */}
             <div className="flex items-center gap-2">
               <Tag className="w-4 h-4 text-brand-500" />
               <span>Lote:</span>
@@ -152,128 +236,232 @@ export default function DashboardModule({
               </select>
             </div>
           </div>
-
-          <div className="text-xs text-gray-500 font-medium">
-            Exibindo <span className="font-bold text-gray-800">{parametros.length}</span> parâmetros
-          </div>
         </div>
       </div>
 
-      {/* RENDERIZAÇÃO INDEPENDENTE PARA CADA PARÂMETRO */}
-      <div className="space-y-6">
-        {parametros.map((param) => {
-          // Lançamentos filtrados por Viveiro, Lote e Parâmetro
-          const paramLancamentos = lancamentos
-            .filter((l) => l.parameterId === param.id)
-            .filter((l) => selectedViveiroId === 'all' || l.viveiroId === selectedViveiroId)
-            .filter((l) => selectedPovoamentoId === 'all' || l.povoamentoId === selectedPovoamentoId)
-            .sort((a, b) => new Date(a.date) - new Date(b.date));
+      {/* 🎛️ CARD DO GRÁFICO LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) */}
+      <div className="bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white rounded-2xl p-6 shadow-xl border border-brand-500/20 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              Análise Comparativa Personalizada (Gráfico Livre)
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Escolha quaisquer 2 parâmetros para analisar correlações livres no mesmo gráfico.
+            </p>
+          </div>
 
-          // Viveiros que possuem medições para este parâmetro no filtro atual
-          const viveirosComDados = viveiros.filter((v) =>
-            paramLancamentos.some((l) => l.viveiroId === v.id)
+          {/* Seletor de Visibilidade do Gráfico Livre */}
+          <div className="flex items-center gap-2">
+            <select
+              value={customVisibility}
+              onChange={(e) => setCustomVisibility(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="both">Exibir Ambos os Parâmetros</option>
+              <option value="p1">Apenas Parâmetro 1</option>
+              <option value="p2">Apenas Parâmetro 2</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Controles de Seleção dos 2 Parâmetros */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Parâmetro 1 (Eixo Esquerdo)
+            </label>
+            <select
+              value={customParam1Id}
+              onChange={(e) => setCustomParam1Id(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {parametros.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.unit})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Parâmetro 2 (Eixo Direito)
+            </label>
+            <select
+              value={customParam2Id}
+              onChange={(e) => setCustomParam2Id(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {parametros.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.unit})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Gráfico do Card Livre */}
+        {(() => {
+          const { data, p1, p2 } = buildDualParamChartData(customParam1Id, customParam2Id);
+          if (!p1 || !p2 || data.length === 0) {
+            return (
+              <div className="py-10 text-center text-slate-500 bg-slate-900/50 rounded-xl border border-slate-800">
+                <Activity className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                <p className="text-xs">Sem medições suficientes para os parâmetros selecionados.</p>
+              </div>
+            );
+          }
+
+          const sameAxis = p1.unit === p2.unit;
+          const showP1 = customVisibility === 'both' || customVisibility === 'p1';
+          const showP2 = customVisibility === 'both' || customVisibility === 'p2';
+
+          return (
+            <div className="h-72 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} stroke="#475569" />
+                  <YAxis yAxisId="left" tick={{ fill: '#38bdf8', fontSize: 12 }} stroke="#38bdf8" />
+                  {!sameAxis && (
+                    <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f43f5e', fontSize: 12 }} stroke="#f43f5e" />
+                  )}
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl text-white">
+                            <p className="text-slate-400 font-semibold border-b border-slate-800 pb-1">
+                              Data: <span className="font-mono text-white">{d.formattedDate}</span> {d.time && `às ${d.time}`}
+                            </p>
+                            {payload.map((entry) => (
+                              <div key={entry.name} className="flex items-center justify-between gap-3">
+                                <span className="font-semibold" style={{ color: entry.color }}>
+                                  {entry.name}:
+                                </span>
+                                <span className="font-mono font-bold text-white">{entry.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '12px' }} />
+                  {showP1 && (
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey={p1.name}
+                      name={`${p1.name} (${p1.unit})`}
+                      stroke="#38bdf8"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#38bdf8' }}
+                      connectNulls
+                    />
+                  )}
+                  {showP2 && (
+                    <Line
+                      yAxisId={sameAxis ? 'left' : 'right'}
+                      type="monotone"
+                      dataKey={p2.name}
+                      name={`${p2.name} (${p2.unit})`}
+                      stroke="#f43f5e"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#f43f5e' }}
+                      connectNulls
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           );
+        })()}
+      </div>
 
-          // Extrair todas as datas únicas ordenadas
-          const uniqueDates = Array.from(
-            new Set(paramLancamentos.map((l) => l.date))
-          ).sort();
+      {/* 📊 OS 5 GRÁFICOS ESTRATÉGICOS CONSOLIDADOS */}
+      <div className="space-y-6">
+        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 pt-2">
+          <Sliders className="w-5 h-5 text-brand-500" />
+          Gráficos Estratégicos Consolidados (Pares de Parâmetros)
+        </h2>
 
-          // Montar a estrutura de dados para o Recharts (uma linha por viveiro se "all" estiver selecionado)
-          const chartData = uniqueDates.map((dateStr) => {
-            const dataPoint = {
-              date: formatDateBR(dateStr).substring(0, 5),
-              formattedDate: formatDateBR(dateStr),
-              fullDate: dateStr
-            };
-
-            // Adicionar a leitura de cada viveiro como uma chave no objeto do ponto
-            viveirosComDados.forEach((v) => {
-              const reading = paramLancamentos.find(
-                (l) => l.date === dateStr && l.viveiroId === v.id
-              );
-              if (reading) {
-                dataPoint[v.name] = reading.value;
-              }
-            });
-
-            return dataPoint;
-          });
-
-          const hasMin = param.hasMin && param.min !== null && param.min !== undefined;
-          const lastReading = paramLancamentos[paramLancamentos.length - 1];
+        {STRATEGIC_PAIRS.map((pair) => {
+          const { data, p1, p2 } = buildDualParamChartData(pair.param1Id, pair.param2Id);
+          const currentVis = pairVisibility[pair.id] || 'both';
+          const showP1 = currentVis === 'both' || currentVis === 'param1';
+          const showP2 = currentVis === 'both' || currentVis === 'param2';
 
           return (
             <div
-              key={param.id}
+              key={pair.id}
               className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 hover:border-brand-200 transition-colors"
             >
-              {/* Header do Parâmetro Individual */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-2">
+              {/* Header do Gráfico Par */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-3">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-brand-500"></span>
-                    {param.name}
+                    {pair.title}
                   </h3>
                   <p className="text-xs text-gray-500 font-medium mt-0.5">
-                    Unidade: <span className="font-mono text-gray-700 font-bold">{param.unit}</span> |
-                    Faixa Aceitável: {' '}
-                    <span className="font-mono text-emerald-700 font-semibold">
-                      {hasMin ? `${param.min} a ${param.max}` : `0 a ${param.max}`} {param.unit}
-                    </span>
+                    {p1?.name} ({pair.leftLabel}) vs {p2?.name} ({pair.rightLabel})
                   </p>
                 </div>
 
-                {/* Badge da última leitura */}
-                {lastReading && (
-                  <div className="flex items-center gap-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-200 self-start sm:self-auto">
-                    <span className="text-xs text-gray-500 font-medium">Último valor:</span>
-                    <span className="text-sm font-bold font-mono text-brand-600">
-                      {lastReading.value} {param.unit}
-                    </span>
-                  </div>
-                )}
+                {/* CAIXINHA DE SELEÇÃO NO CANTO SUPERIOR DIREITO */}
+                <div className="flex items-center gap-2 self-start sm:self-auto">
+                  <span className="text-xs text-gray-500 font-medium hidden sm:inline">Exibir:</span>
+                  <select
+                    value={currentVis}
+                    onChange={(e) => handlePairVisibilityChange(pair.id, e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-gray-300 bg-gray-50 text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+                  >
+                    <option value="both">Ver Ambos os Parâmetros</option>
+                    <option value="param1">Apenas {p1 ? p1.name : 'Parâmetro 1'}</option>
+                    <option value="param2">Apenas {p2 ? p2.name : 'Parâmetro 2'}</option>
+                  </select>
+                </div>
               </div>
 
-              {/* CONTEÚDO: GRÁFICO OU TABELA INDEPENDENTE */}
-              {paramLancamentos.length === 0 ? (
+              {/* GRÁFICO DE EIXO DUPLO OU TABELA */}
+              {data.length === 0 ? (
                 <div className="py-8 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
                   <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
                   <p className="text-sm font-medium text-gray-500">
-                    Sem lançamentos para este filtro de Viveiro/Lote.
+                    Sem lançamentos registrados para este par de parâmetros.
                   </p>
                 </div>
               ) : viewMode === 'chart' ? (
-                /* VISUALIZAÇÃO EM GRÁFICO DE LINHAS CONSOLIDADO */
                 <div className="h-72 w-full pt-2">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+                    <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                      <XAxis
-                        dataKey="date"
-                        tick={{ fill: '#64748b', fontSize: 11 }}
-                        stroke="#cbd5e1"
-                      />
-                      <YAxis
-                        tick={{ fill: '#64748b', fontSize: 12 }}
-                        stroke="#cbd5e1"
-                        domain={['auto', 'auto']}
-                      />
+                      <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} stroke="#cbd5e1" />
+                      <YAxis yAxisId="left" tick={{ fill: '#1A56DB', fontSize: 12 }} stroke="#1A56DB" />
+                      {!pair.sameAxis && (
+                        <YAxis yAxisId="right" orientation="right" tick={{ fill: '#E11D48', fontSize: 12 }} stroke="#E11D48" />
+                      )}
                       <Tooltip
                         content={({ active, payload }) => {
                           if (active && payload && payload.length) {
-                            const data = payload[0].payload;
+                            const d = payload[0].payload;
                             return (
                               <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-xl text-xs space-y-1.5">
-                                <p className="text-gray-600 font-semibold border-b pb-1">Data: <span className="font-mono font-bold text-gray-900">{data.formattedDate}</span></p>
+                                <p className="text-gray-600 font-semibold border-b pb-1">
+                                  Data: <span className="font-mono text-gray-900 font-bold">{d.formattedDate}</span> {d.time && `às ${d.time}`}
+                                </p>
                                 {payload.map((entry) => (
                                   <div key={entry.name} className="flex items-center justify-between gap-3">
                                     <span className="font-semibold" style={{ color: entry.color }}>
                                       {entry.name}:
                                     </span>
-                                    <span className="font-mono font-bold text-gray-900">
-                                      {entry.value} {param.unit}
-                                    </span>
+                                    <span className="font-mono font-bold text-gray-900">{entry.value}</span>
                                   </div>
                                 ))}
                               </div>
@@ -282,123 +470,55 @@ export default function DashboardModule({
                           return null;
                         }}
                       />
-
-                      {/* Legenda quando exibindo múltiplos viveiros */}
-                      {selectedViveiroId === 'all' && (
-                        <Legend
-                          verticalAlign="top"
-                          align="right"
-                          iconType="circle"
-                          wrapperStyle={{ fontSize: '12px', fontWeight: '600' }}
+                      <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: '600' }} />
+                      {showP1 && p1 && (
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey={p1.name}
+                          name={`${p1.name} (${p1.unit})`}
+                          stroke="#1A56DB"
+                          strokeWidth={3}
+                          dot={{ r: 4, fill: '#1A56DB', strokeWidth: 2, stroke: '#ffffff' }}
+                          connectNulls
                         />
                       )}
-
-                      {/* Linha Guia Limite Mínimo (se houver) */}
-                      {hasMin && (
-                        <ReferenceLine
-                          y={param.min}
-                          stroke="#f59e0b"
-                          strokeDasharray="4 4"
-                          label={{
-                            value: `Mín: ${param.min}`,
-                            fill: '#d97706',
-                            fontSize: 10,
-                            position: 'insideBottomLeft'
-                          }}
+                      {showP2 && p2 && (
+                        <Line
+                          yAxisId={pair.sameAxis ? 'left' : 'right'}
+                          type="monotone"
+                          dataKey={p2.name}
+                          name={`${p2.name} (${p2.unit})`}
+                          stroke="#E11D48"
+                          strokeWidth={3}
+                          dot={{ r: 4, fill: '#E11D48', strokeWidth: 2, stroke: '#ffffff' }}
+                          connectNulls
                         />
                       )}
-
-                      {/* Linha Guia Limite Máximo */}
-                      {param.max && (
-                        <ReferenceLine
-                          y={param.max}
-                          stroke="#ef4444"
-                          strokeDasharray="4 4"
-                          label={{
-                            value: `Máx: ${param.max}`,
-                            fill: '#dc2626',
-                            fontSize: 10,
-                            position: 'insideTopLeft'
-                          }}
-                        />
-                      )}
-
-                      {/* UMA LINHA DE COR DIFERENTE PARA CADA VIVEIRO */}
-                      {viveirosComDados.map((v, idx) => {
-                        const lineColor = VIVEIRO_COLORS[idx % VIVEIRO_COLORS.length];
-                        return (
-                          <Line
-                            key={v.id}
-                            type="monotone"
-                            dataKey={v.name}
-                            name={v.name}
-                            stroke={lineColor}
-                            strokeWidth={3}
-                            dot={{ r: 4, fill: lineColor, strokeWidth: 2, stroke: '#ffffff' }}
-                            activeDot={{ r: 6, fill: lineColor }}
-                            connectNulls={true}
-                          />
-                        );
-                      })}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               ) : (
-                /* VISUALIZAÇÃO EM TABELA POR DATAS (DD/MM/AAAA) */
+                /* MODO TABELA */
                 <div className="overflow-x-auto border border-gray-100 rounded-xl">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                        <th className="px-4 py-3">Viveiro</th>
-                        {uniqueDates.map((dateStr) => (
-                          <th key={dateStr} className="px-4 py-3 text-center font-mono">
-                            {formatDateBR(dateStr)}
-                          </th>
-                        ))}
+                        <th className="px-4 py-3">Data & Hora</th>
+                        {p1 && <th className="px-4 py-3 font-semibold">{p1.name} ({p1.unit})</th>}
+                        {p2 && <th className="px-4 py-3 font-semibold">{p2.name} ({p2.unit})</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-sm">
-                      {viveirosComDados.map((v) => {
-                        const vLancamentos = paramLancamentos.filter((l) => l.viveiroId === v.id);
-
-                        return (
-                          <tr key={v.id} className="hover:bg-gray-50/80">
-                            <td className="px-4 py-3 font-semibold text-gray-900 border-r border-gray-100">
-                              {v.name}
-                            </td>
-                            {uniqueDates.map((dStr) => {
-                              const entry = vLancamentos.find((l) => l.date === dStr);
-                              if (!entry) {
-                                return (
-                                  <td key={dStr} className="px-4 py-3 text-center text-gray-300 font-mono text-xs">
-                                    -
-                                  </td>
-                                );
-                              }
-
-                              const val = entry.value;
-                              const isBelow = hasMin && val < param.min;
-                              const isAbove = param.max !== null && val > param.max;
-
-                              return (
-                                <td key={dStr} className="px-4 py-3 text-center font-mono font-bold">
-                                  <span
-                                    className={`inline-block px-2.5 py-1 rounded-lg text-xs font-mono font-bold ${
-                                      isBelow
-                                        ? 'bg-amber-100 text-amber-800'
-                                        : isAbove
-                                        ? 'bg-rose-100 text-rose-800'
-                                        : 'bg-emerald-50 text-emerald-800'
-                                    }`}
-                                  >
-                                    {val}
-                                  </span>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
+                      {data.map((row, i) => (
+                        <tr key={i} className="hover:bg-gray-50/80 font-mono">
+                          <td className="px-4 py-3 text-gray-600 font-sans">
+                            {row.formattedDate} {row.time && `às ${row.time}`}
+                          </td>
+                          {p1 && <td className="px-4 py-3 font-bold text-blue-700">{row[p1.name] ?? '-'}</td>}
+                          {p2 && <td className="px-4 py-3 font-bold text-rose-700">{row[p2.name] ?? '-'}</td>}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>

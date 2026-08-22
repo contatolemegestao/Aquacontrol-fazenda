@@ -113,6 +113,7 @@ export const seedInitialDataForLemeAccount = async (userEmail, userId) => {
               povoamento_id: l.povoamentoId,
               parameter_id: l.parameterId,
               date: l.date,
+              time: l.time || '08:00',
               value: l.value
             }))
           );
@@ -236,6 +237,7 @@ export const saveLancamentosForUser = async (userEmail, data, userId) => {
         povoamento_id: l.povoamentoId,
         parameter_id: l.parameterId,
         date: l.date,
+        time: l.time || '08:00',
         value: l.value
       }));
       await supabase.from('lancamentos').upsert(payload);

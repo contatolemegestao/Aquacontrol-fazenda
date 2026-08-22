@@ -120,6 +120,7 @@ export default function App() {
             povoamentoId: l.povoamento_id,
             parameterId: l.parameter_id,
             date: l.date,
+            time: l.time || '',
             value: Number(l.value)
           }));
           setLancamentos(mapped);

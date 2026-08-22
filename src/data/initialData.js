@@ -163,6 +163,7 @@ O2_VALUES_60.forEach((val, i) => {
   const curDate = new Date(startDateO2);
   curDate.setDate(curDate.getDate() + i);
   const dateStr = curDate.toISOString().split('T')[0];
+  const timeStr = i % 2 === 0 ? '06:30' : '16:00';
 
   INITIAL_LANCAMENTOS.push({
     id: `l-o2-day-${i + 1}`,
@@ -170,8 +171,9 @@ O2_VALUES_60.forEach((val, i) => {
     povoamentoId: 'pov-2', // Lote 02/2026 (Ativo)
     parameterId: 'param-1',
     date: dateStr,
+    time: timeStr,
     value: val,
-    createdAt: `${dateStr}T08:00:00`
+    createdAt: `${dateStr}T${timeStr}:00`
   });
 });
 
@@ -189,8 +191,9 @@ O2_VALUES_LOTE1.forEach((val, i) => {
     povoamentoId: 'pov-1', // Lote 01/2026 (Finalizado)
     parameterId: 'param-1',
     date: LOTE1_DATES[i],
+    time: '07:00',
     value: val,
-    createdAt: `${LOTE1_DATES[i]}T08:00:00`
+    createdAt: `${LOTE1_DATES[i]}T07:00:00`
   });
 });
 
@@ -222,6 +225,7 @@ Object.keys(OTHER_PARAM_DATA).forEach((paramId) => {
       povoamentoId: 'pov-2', // Lote 02/2026 (Ativo)
       parameterId: paramId,
       date: WEEKLY_DATES[weekIdx],
+      time: '08:00',
       value: val,
       createdAt: `${WEEKLY_DATES[weekIdx]}T08:00:00`
     });

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FilePlus2, CheckCircle2, AlertCircle, Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Tag } from 'lucide-react';
+import { FilePlus2, CheckCircle2, AlertCircle, Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Clock } from 'lucide-react';
 
 export default function LancamentoModule({
   viveiros,
@@ -8,6 +8,14 @@ export default function LancamentoModule({
   lancamentos,
   setLancamentos
 }) {
+  // Função auxiliar para pegar a hora atual no formato HH:MM
+  const getCurrentTimeStr = () => {
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
+  };
+
   // Estado do viveiro selecionado
   const [selectedViveiroId, setSelectedViveiroId] = useState(
     viveiros.length > 0 ? viveiros[0].id : ''
@@ -29,6 +37,8 @@ export default function LancamentoModule({
   const [date, setDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+  // Horário do registro: automático com hora atual do dispositivo, mas editável
+  const [time, setTime] = useState(getCurrentTimeStr);
   const [valueStr, setValueStr] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState('');
@@ -105,6 +115,10 @@ export default function LancamentoModule({
       setErrorMsg('Selecione a data do lançamento.');
       return;
     }
+    if (!time) {
+      setErrorMsg('Informe o horário do registro.');
+      return;
+    }
     if (valueStr.trim() === '' || isNaN(numValue)) {
       setErrorMsg('Informe um valor numérico válido.');
       return;
@@ -116,12 +130,15 @@ export default function LancamentoModule({
       povoamentoId: selectedPovoamentoId,
       parameterId: selectedParamId,
       date,
+      time,
       value: numValue,
       createdAt: new Date().toISOString()
     };
 
     setLancamentos([newLancamento, ...lancamentos]);
     setValueStr('');
+    // Atualiza a hora para a hora atual do momento
+    setTime(getCurrentTimeStr());
     triggerToast('Medição registrada com sucesso!');
   };
 
@@ -133,7 +150,7 @@ export default function LancamentoModule({
   };
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-6 relative font-['Inter',sans-serif]">
       {/* Toast Notification no Canto Superior Direito */}
       {toastMsg && (
         <div className="fixed top-20 right-6 z-50 bg-emerald-600 text-white px-5 py-3 rounded-2xl shadow-xl flex items-center gap-2.5 text-sm font-medium animate-bounce">
@@ -147,10 +164,10 @@ export default function LancamentoModule({
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <FilePlus2 className="w-7 h-7 text-brand-500" />
-            Lançamento Diário por Lote
+            Lançamento Diário de Parâmetros
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Registre medições selecionando o viveiro, o lote de cultivo ativo e o valor do parâmetro.
+            Registre medições selecionando o viveiro, cultivo ativo, data, horário do registro e valor do parâmetro.
           </p>
         </div>
         <div className="bg-brand-50 px-4 py-2 rounded-xl text-brand-700 text-sm font-semibold flex items-center gap-2 self-start md:self-auto">
@@ -173,7 +190,7 @@ export default function LancamentoModule({
         )}
 
         <form onSubmit={handleSaveLancamento} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             {/* Seletor 1: Viveiro */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
@@ -195,7 +212,7 @@ export default function LancamentoModule({
             {/* Seletor 2: Lote do Viveiro (APENAS CULTIVOS ATIVOS) */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Lote de Cultivo (Ativo)
+                Cultivo / Lote (Ativo)
               </label>
               <select
                 value={selectedPovoamentoId}
@@ -240,7 +257,7 @@ export default function LancamentoModule({
             {/* Campo Data */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Data
+                Data do Registro
               </label>
               <input
                 type="date"
@@ -248,6 +265,22 @@ export default function LancamentoModule({
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none transition"
               />
+            </div>
+
+            {/* HORÁRIO DO REGISTRO (Preenchimento Automático + Edição Livre) */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5 flex items-center justify-between">
+                <span>Horário</span>
+                <span className="text-[10px] text-brand-600 font-normal lowercase">(automático)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="time"
+                  value={time}
+                  onChange={(e) => setTime(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm font-mono outline-none transition"
+                />
+              </div>
             </div>
 
             {/* Campo Unidade (Readonly) */}
@@ -327,7 +360,7 @@ export default function LancamentoModule({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="px-6 py-3.5">Data</th>
+                  <th className="px-6 py-3.5">Data & Hora</th>
                   <th className="px-6 py-3.5">Viveiro</th>
                   <th className="px-6 py-3.5">Lote</th>
                   <th className="px-6 py-3.5">Parâmetro</th>
@@ -347,7 +380,15 @@ export default function LancamentoModule({
                   return (
                     <tr key={l.id} className="hover:bg-gray-50/80 transition-colors">
                       <td className="px-6 py-4 font-mono text-gray-600">
-                        {new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR')}
+                        <div className="flex items-center gap-1.5">
+                          <span>{new Date(l.date + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+                          {l.time && (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 text-xs font-bold font-mono">
+                              <Clock className="w-3 h-3 text-brand-500" />
+                              {l.time}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         {viv ? viv.name : 'Viveiro Indefinido'}
