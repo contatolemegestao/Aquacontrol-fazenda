@@ -6,7 +6,9 @@ import {
   Activity,
   Tag,
   Sliders,
-  Sparkles
+  Sparkles,
+  CheckSquare,
+  Square
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -91,19 +93,19 @@ export default function DashboardModule({
   const [selectedViveiroId, setSelectedViveiroId] = useState('all');
   const [selectedPovoamentoId, setSelectedPovoamentoId] = useState('all');
 
-  // Estado da visibilidade dos parâmetros em cada um dos 5 gráficos (both | param1 | param2)
-  const [pairVisibility, setPairVisibility] = useState({
-    'pair-o2-temp': 'both',
-    'pair-alc-dur': 'both',
-    'pair-alc-ph': 'both',
-    'pair-nh3-ph': 'both',
-    'pair-sal-no2': 'both'
+  // Estado dos checkboxes independentes de cada gráfico par: { [pairId]: { showP1: true, showP2: true } }
+  const [pairCheckboxes, setPairCheckboxes] = useState({
+    'pair-o2-temp': { showP1: true, showP2: true },
+    'pair-alc-dur': { showP1: true, showP2: true },
+    'pair-alc-ph': { showP1: true, showP2: true },
+    'pair-nh3-ph': { showP1: true, showP2: true },
+    'pair-sal-no2': { showP1: true, showP2: true }
   });
 
   // Estado do Gráfico/Tabela Livre (Análise Comparativa Personalizada)
   const [customParam1Id, setCustomParam1Id] = useState(parametros[0]?.id || '');
   const [customParam2Id, setCustomParam2Id] = useState(parametros[1]?.id || '');
-  const [customVisibility, setCustomVisibility] = useState('both');
+  const [customCheckboxes, setCustomCheckboxes] = useState({ showP1: true, showP2: true });
 
   const lotesDisponiveis = selectedViveiroId === 'all'
     ? povoamentos
@@ -114,8 +116,26 @@ export default function DashboardModule({
     setSelectedPovoamentoId('all');
   };
 
-  const handlePairVisibilityChange = (pairId, mode) => {
-    setPairVisibility((prev) => ({ ...prev, [pairId]: mode }));
+  const togglePairCheckbox = (pairId, paramKey) => {
+    setPairCheckboxes((prev) => {
+      const current = prev[pairId] || { showP1: true, showP2: true };
+      const updated = { ...current, [paramKey]: !current[paramKey] };
+      // Se tentar desmarcar ambos, mantém o clicado ativo
+      if (!updated.showP1 && !updated.showP2) {
+        return prev;
+      }
+      return { ...prev, [pairId]: updated };
+    });
+  };
+
+  const toggleCustomCheckbox = (paramKey) => {
+    setCustomCheckboxes((prev) => {
+      const updated = { ...prev, [paramKey]: !prev[paramKey] };
+      if (!updated.showP1 && !updated.showP2) {
+        return prev;
+      }
+      return updated;
+    });
   };
 
   // Montar dados combinados para um par de parâmetros
@@ -249,9 +269,7 @@ export default function DashboardModule({
 
         {STRATEGIC_PAIRS.map((pair) => {
           const { data, p1, p2 } = buildDualParamChartData(pair.param1Id, pair.param2Id);
-          const currentVis = pairVisibility[pair.id] || 'both';
-          const showP1 = currentVis === 'both' || currentVis === 'param1';
-          const showP2 = currentVis === 'both' || currentVis === 'param2';
+          const { showP1, showP2 } = pairCheckboxes[pair.id] || { showP1: true, showP2: true };
 
           return (
             <div
@@ -270,19 +288,46 @@ export default function DashboardModule({
                   </p>
                 </div>
 
-                {/* CAIXINHA DE SELEÇÃO EXIBIDA APENAS NO MODO GRÁFICO (REMOVIDA NA TABELA CONFORME SOLICITADO) */}
+                {/* BOTÕES CHECKBOXES INTERATIVOS NO CANTO SUPERIOR DIREITO (NOVO FORMATO INTUITIVO) */}
                 {viewMode === 'chart' && (
-                  <div className="flex items-center gap-2 self-start sm:self-auto">
-                    <span className="text-xs text-gray-500 font-medium hidden sm:inline">Exibir:</span>
-                    <select
-                      value={currentVis}
-                      onChange={(e) => handlePairVisibilityChange(pair.id, e.target.value)}
-                      className="px-3 py-1.5 rounded-xl border border-gray-300 bg-gray-50 text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
-                    >
-                      <option value="both">Ver Ambos os Parâmetros</option>
-                      <option value="param1">Apenas {p1 ? p1.name : 'Parâmetro 1'}</option>
-                      <option value="param2">Apenas {p2 ? p2.name : 'Parâmetro 2'}</option>
-                    </select>
+                  <div className="flex items-center gap-3 self-start sm:self-auto flex-wrap">
+                    {p1 && (
+                      <button
+                        type="button"
+                        onClick={() => togglePairCheckbox(pair.id, 'showP1')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                          showP1
+                            ? 'bg-blue-50 border-blue-300 text-blue-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-400 opacity-60'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                          showP1 ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 bg-white'
+                        }`}>
+                          {showP1 && <span className="text-[10px] leading-none font-bold">✓</span>}
+                        </div>
+                        <span>{p1.name}</span>
+                      </button>
+                    )}
+
+                    {p2 && (
+                      <button
+                        type="button"
+                        onClick={() => togglePairCheckbox(pair.id, 'showP2')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                          showP2
+                            ? 'bg-rose-50 border-rose-300 text-rose-700'
+                            : 'bg-gray-50 border-gray-200 text-gray-400 opacity-60'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                          showP2 ? 'bg-rose-600 border-rose-600 text-white' : 'border-gray-300 bg-white'
+                        }`}>
+                          {showP2 && <span className="text-[10px] leading-none font-bold">✓</span>}
+                        </div>
+                        <span>{p2.name}</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -405,18 +450,54 @@ export default function DashboardModule({
             </p>
           </div>
 
-          {/* Seletor de Visibilidade do Gráfico Livre (APENAS NO MODO GRÁFICO) */}
+          {/* BOTÕES CHECKBOXES INTERATIVOS NO CANTO SUPERIOR DIREITO DO CARD LIVRE */}
           {viewMode === 'chart' && (
-            <div className="flex items-center gap-2">
-              <select
-                value={customVisibility}
-                onChange={(e) => setCustomVisibility(e.target.value)}
-                className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
-              >
-                <option value="both">Exibir Ambos os Parâmetros</option>
-                <option value="p1">Apenas Parâmetro 1</option>
-                <option value="p2">Apenas Parâmetro 2</option>
-              </select>
+            <div className="flex items-center gap-3 flex-wrap">
+              {(() => {
+                const p1 = parametros.find((p) => p.id === customParam1Id);
+                const p2 = parametros.find((p) => p.id === customParam2Id);
+                return (
+                  <>
+                    {p1 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleCustomCheckbox('showP1')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                          customCheckboxes.showP1
+                            ? 'bg-sky-950/80 border-sky-500/50 text-sky-300'
+                            : 'bg-slate-900/40 border-slate-800 text-slate-500 opacity-60'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                          customCheckboxes.showP1 ? 'bg-sky-400 border-sky-400 text-slate-950' : 'border-slate-700 bg-slate-800'
+                        }`}>
+                          {customCheckboxes.showP1 && <span className="text-[10px] leading-none font-extrabold">✓</span>}
+                        </div>
+                        <span>{p1.name}</span>
+                      </button>
+                    )}
+
+                    {p2 && (
+                      <button
+                        type="button"
+                        onClick={() => toggleCustomCheckbox('showP2')}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                          customCheckboxes.showP2
+                            ? 'bg-rose-950/80 border-rose-500/50 text-rose-300'
+                            : 'bg-slate-900/40 border-slate-800 text-slate-500 opacity-60'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                          customCheckboxes.showP2 ? 'bg-rose-500 border-rose-500 text-white' : 'border-slate-700 bg-slate-800'
+                        }`}>
+                          {customCheckboxes.showP2 && <span className="text-[10px] leading-none font-extrabold">✓</span>}
+                        </div>
+                        <span>{p2.name}</span>
+                      </button>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
@@ -484,8 +565,7 @@ export default function DashboardModule({
 
           if (viewMode === 'chart') {
             const sameAxis = p1.unit === p2.unit;
-            const showP1 = customVisibility === 'both' || customVisibility === 'p1';
-            const showP2 = customVisibility === 'both' || customVisibility === 'p2';
+            const { showP1, showP2 } = customCheckboxes;
 
             return (
               <div className="h-72 w-full pt-2">
