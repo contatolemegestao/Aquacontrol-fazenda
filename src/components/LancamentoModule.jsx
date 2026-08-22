@@ -13,14 +13,14 @@ export default function LancamentoModule({
     viveiros.length > 0 ? viveiros[0].id : ''
   );
 
-  // Lotes pertencentes ao viveiro selecionado (tanto ativos quanto finalizados)
-  const lotesDoViveiro = povoamentos.filter(
-    (p) => p.viveiroId === selectedViveiroId
+  // Lotes pertencentes ao viveiro selecionado (APENAS CULTIVOS ATIVOS)
+  const lotesDoViveiroAtivos = povoamentos.filter(
+    (p) => p.viveiroId === selectedViveiroId && p.status === 'ativo'
   );
 
   // Estado do lote selecionado (povoamentoId)
   const [selectedPovoamentoId, setSelectedPovoamentoId] = useState(() => {
-    return lotesDoViveiro.length > 0 ? lotesDoViveiro[0].id : '';
+    return lotesDoViveiroAtivos.length > 0 ? lotesDoViveiroAtivos[0].id : '';
   });
 
   const [selectedParamId, setSelectedParamId] = useState(
@@ -40,12 +40,12 @@ export default function LancamentoModule({
     }, 4000);
   };
 
-  // Quando o viveiro muda, atualiza o lote selecionado para o primeiro lote daquele viveiro
+  // Quando o viveiro muda, atualiza o lote selecionado para o primeiro lote ATIVO daquele viveiro
   const handleViveiroChange = (vivId) => {
     setSelectedViveiroId(vivId);
-    const lotes = povoamentos.filter((p) => p.viveiroId === vivId);
-    if (lotes.length > 0) {
-      setSelectedPovoamentoId(lotes[0].id);
+    const lotesAtivos = povoamentos.filter((p) => p.viveiroId === vivId && p.status === 'ativo');
+    if (lotesAtivos.length > 0) {
+      setSelectedPovoamentoId(lotesAtivos[0].id);
     } else {
       setSelectedPovoamentoId('');
     }
@@ -94,7 +94,7 @@ export default function LancamentoModule({
       return;
     }
     if (!selectedPovoamentoId) {
-      setErrorMsg('Selecione um lote para registrar o lançamento.');
+      setErrorMsg('Selecione um lote ativo para registrar o lançamento.');
       return;
     }
     if (!selectedParamId) {
@@ -150,7 +150,7 @@ export default function LancamentoModule({
             Lançamento Diário por Lote
           </h1>
           <p className="text-sm text-gray-500 mt-1">
-            Registre medições selecionando o viveiro, o lote de cultivo (ativo ou finalizado) e o valor do parâmetro.
+            Registre medições selecionando o viveiro, o lote de cultivo ativo e o valor do parâmetro.
           </p>
         </div>
         <div className="bg-brand-50 px-4 py-2 rounded-xl text-brand-700 text-sm font-semibold flex items-center gap-2 self-start md:self-auto">
@@ -192,32 +192,29 @@ export default function LancamentoModule({
               </select>
             </div>
 
-            {/* Seletor 2: Lote do Viveiro (Ativos e Finalizados com badges) */}
+            {/* Seletor 2: Lote do Viveiro (APENAS CULTIVOS ATIVOS) */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">
-                Lote de Cultivo
+                Lote de Cultivo (Ativo)
               </label>
               <select
                 value={selectedPovoamentoId}
                 onChange={(e) => setSelectedPovoamentoId(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-sm outline-none bg-white font-medium transition"
               >
-                {lotesDoViveiro.length === 0 ? (
-                  <option value="">-- Nenhum Lote neste Viveiro --</option>
+                {lotesDoViveiroAtivos.length === 0 ? (
+                  <option value="">-- Nenhum Lote Ativo neste Viveiro --</option>
                 ) : (
-                  lotesDoViveiro.map((p) => {
-                    const isAtivo = p.status === 'ativo';
-                    return (
-                      <option key={p.id} value={p.id}>
-                        {isAtivo ? '🟢' : '⚪'} {p.numeroLote || 'Lote'} ({isAtivo ? 'Ativo' : 'Finalizado'})
-                      </option>
-                    );
-                  })
+                  lotesDoViveiroAtivos.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      🟢 {p.numeroLote || 'Lote'} (Ativo)
+                    </option>
+                  ))
                 )}
               </select>
-              {lotesDoViveiro.length === 0 && (
+              {lotesDoViveiroAtivos.length === 0 && (
                 <p className="text-xs text-amber-600 mt-1">
-                  Cadastre um povoamento para este viveiro na aba 'Povoamento'.
+                  Não há ciclo ativo neste viveiro.
                 </p>
               )}
             </div>
@@ -293,7 +290,7 @@ export default function LancamentoModule({
             <div>
               <button
                 type="submit"
-                disabled={lotesDoViveiro.length === 0}
+                disabled={lotesDoViveiroAtivos.length === 0}
                 className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-medium px-6 py-2.5 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-md shadow-brand-500/20"
               >
                 <Plus className="w-4 h-4" />
