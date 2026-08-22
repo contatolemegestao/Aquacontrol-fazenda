@@ -418,10 +418,10 @@ export default function DashboardModule({
               </select>
             </div>
 
-            {/* 🎯 SELETOR DE ESCOPO DE DATA */}
+            {/* 🎯 SELETOR DE INTERVALO DE DATAS */}
             <div className="flex items-center gap-2 bg-blue-50/80 px-3 py-1 rounded-xl border border-blue-200">
               <Calendar className="w-4 h-4 text-blue-600" />
-              <span className="text-blue-900 font-bold">Escopo:</span>
+              <span className="text-blue-900 font-bold">Intervalo de Datas:</span>
               <select
                 value={dateScope}
                 onChange={(e) => setDateScope(e.target.value)}
