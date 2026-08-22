@@ -239,151 +239,6 @@ export default function DashboardModule({
         </div>
       </div>
 
-      {/* 🎛️ CARD DO GRÁFICO LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) */}
-      <div className="bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white rounded-2xl p-6 shadow-xl border border-brand-500/20 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
-          <div>
-            <h2 className="text-lg font-bold text-white flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-400" />
-              Análise Comparativa Personalizada (Gráfico Livre)
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Escolha quaisquer 2 parâmetros para analisar correlações livres no mesmo gráfico.
-            </p>
-          </div>
-
-          {/* Seletor de Visibilidade do Gráfico Livre */}
-          <div className="flex items-center gap-2">
-            <select
-              value={customVisibility}
-              onChange={(e) => setCustomVisibility(e.target.value)}
-              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="both">Exibir Ambos os Parâmetros</option>
-              <option value="p1">Apenas Parâmetro 1</option>
-              <option value="p2">Apenas Parâmetro 2</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Controles de Seleção dos 2 Parâmetros */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Parâmetro 1 (Eixo Esquerdo)
-            </label>
-            <select
-              value={customParam1Id}
-              onChange={(e) => setCustomParam1Id(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {parametros.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.unit})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
-              Parâmetro 2 (Eixo Direito)
-            </label>
-            <select
-              value={customParam2Id}
-              onChange={(e) => setCustomParam2Id(e.target.value)}
-              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              {parametros.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} ({p.unit})
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Gráfico do Card Livre */}
-        {(() => {
-          const { data, p1, p2 } = buildDualParamChartData(customParam1Id, customParam2Id);
-          if (!p1 || !p2 || data.length === 0) {
-            return (
-              <div className="py-10 text-center text-slate-500 bg-slate-900/50 rounded-xl border border-slate-800">
-                <Activity className="w-8 h-8 mx-auto mb-2 text-slate-600" />
-                <p className="text-xs">Sem medições suficientes para os parâmetros selecionados.</p>
-              </div>
-            );
-          }
-
-          const sameAxis = p1.unit === p2.unit;
-          const showP1 = customVisibility === 'both' || customVisibility === 'p1';
-          const showP2 = customVisibility === 'both' || customVisibility === 'p2';
-
-          return (
-            <div className="h-72 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} stroke="#475569" />
-                  <YAxis yAxisId="left" tick={{ fill: '#38bdf8', fontSize: 12 }} stroke="#38bdf8" />
-                  {!sameAxis && (
-                    <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f43f5e', fontSize: 12 }} stroke="#f43f5e" />
-                  )}
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const d = payload[0].payload;
-                        return (
-                          <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl text-white">
-                            <p className="text-slate-400 font-semibold border-b border-slate-800 pb-1">
-                              Data: <span className="font-mono text-white">{d.formattedDate}</span> {d.time && `às ${d.time}`}
-                            </p>
-                            {payload.map((entry) => (
-                              <div key={entry.name} className="flex items-center justify-between gap-3">
-                                <span className="font-semibold" style={{ color: entry.color }}>
-                                  {entry.name}:
-                                </span>
-                                <span className="font-mono font-bold text-white">{entry.value}</span>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '12px' }} />
-                  {showP1 && (
-                    <Line
-                      yAxisId="left"
-                      type="monotone"
-                      dataKey={p1.name}
-                      name={`${p1.name} (${p1.unit})`}
-                      stroke="#38bdf8"
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: '#38bdf8' }}
-                      connectNulls
-                    />
-                  )}
-                  {showP2 && (
-                    <Line
-                      yAxisId={sameAxis ? 'left' : 'right'}
-                      type="monotone"
-                      dataKey={p2.name}
-                      name={`${p2.name} (${p2.unit})`}
-                      stroke="#f43f5e"
-                      strokeWidth={3}
-                      dot={{ r: 4, fill: '#f43f5e' }}
-                      connectNulls
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          );
-        })()}
-      </div>
-
       {/* 📊 OS 5 GRÁFICOS ESTRATÉGICOS CONSOLIDADOS */}
       <div className="space-y-6">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 pt-2">
@@ -526,6 +381,151 @@ export default function DashboardModule({
             </div>
           );
         })}
+      </div>
+
+      {/* 🎛️ CARD DO GRÁFICO LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
+      <div className="bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white rounded-2xl p-6 shadow-xl border border-brand-500/20 space-y-4 mt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+          <div>
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-400" />
+              Análise Comparativa Personalizada (Gráfico Livre)
+            </h2>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Escolha quaisquer 2 parâmetros para analisar correlações livres no mesmo gráfico.
+            </p>
+          </div>
+
+          {/* Seletor de Visibilidade do Gráfico Livre */}
+          <div className="flex items-center gap-2">
+            <select
+              value={customVisibility}
+              onChange={(e) => setCustomVisibility(e.target.value)}
+              className="px-3 py-1.5 rounded-xl border border-slate-700 bg-slate-800 text-xs font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="both">Exibir Ambos os Parâmetros</option>
+              <option value="p1">Apenas Parâmetro 1</option>
+              <option value="p2">Apenas Parâmetro 2</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Controles de Seleção dos 2 Parâmetros */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Parâmetro 1 (Eixo Esquerdo)
+            </label>
+            <select
+              value={customParam1Id}
+              onChange={(e) => setCustomParam1Id(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {parametros.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.unit})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              Parâmetro 2 (Eixo Direito)
+            </label>
+            <select
+              value={customParam2Id}
+              onChange={(e) => setCustomParam2Id(e.target.value)}
+              className="w-full px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-sm font-semibold text-white outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              {parametros.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} ({p.unit})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Gráfico do Card Livre */}
+        {(() => {
+          const { data, p1, p2 } = buildDualParamChartData(customParam1Id, customParam2Id);
+          if (!p1 || !p2 || data.length === 0) {
+            return (
+              <div className="py-10 text-center text-slate-500 bg-slate-900/50 rounded-xl border border-slate-800">
+                <Activity className="w-8 h-8 mx-auto mb-2 text-slate-600" />
+                <p className="text-xs">Sem medições suficientes para os parâmetros selecionados.</p>
+              </div>
+            );
+          }
+
+          const sameAxis = p1.unit === p2.unit;
+          const showP1 = customVisibility === 'both' || customVisibility === 'p1';
+          const showP2 = customVisibility === 'both' || customVisibility === 'p2';
+
+          return (
+            <div className="h-72 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} stroke="#475569" />
+                  <YAxis yAxisId="left" tick={{ fill: '#38bdf8', fontSize: 12 }} stroke="#38bdf8" />
+                  {!sameAxis && (
+                    <YAxis yAxisId="right" orientation="right" tick={{ fill: '#f43f5e', fontSize: 12 }} stroke="#f43f5e" />
+                  )}
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const d = payload[0].payload;
+                        return (
+                          <div className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-xs space-y-1.5 shadow-2xl text-white">
+                            <p className="text-slate-400 font-semibold border-b border-slate-800 pb-1">
+                              Data: <span className="font-mono text-white">{d.formattedDate}</span> {d.time && `às ${d.time}`}
+                            </p>
+                            {payload.map((entry) => (
+                              <div key={entry.name} className="flex items-center justify-between gap-3">
+                                <span className="font-semibold" style={{ color: entry.color }}>
+                                  {entry.name}:
+                                </span>
+                                <span className="font-mono font-bold text-white">{entry.value}</span>
+                              </div>
+                            ))}
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend verticalAlign="top" align="right" wrapperStyle={{ fontSize: '12px' }} />
+                  {showP1 && (
+                    <Line
+                      yAxisId="left"
+                      type="monotone"
+                      dataKey={p1.name}
+                      name={`${p1.name} (${p1.unit})`}
+                      stroke="#38bdf8"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#38bdf8' }}
+                      connectNulls
+                    />
+                  )}
+                  {showP2 && (
+                    <Line
+                      yAxisId={sameAxis ? 'left' : 'right'}
+                      type="monotone"
+                      dataKey={p2.name}
+                      name={`${p2.name} (${p2.unit})`}
+                      stroke="#f43f5e"
+                      strokeWidth={3}
+                      dot={{ r: 4, fill: '#f43f5e' }}
+                      connectNulls
+                    />
+                  )}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
