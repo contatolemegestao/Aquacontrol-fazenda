@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FilePlus2, CheckCircle2, AlertCircle, Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Clock, CheckCheck } from 'lucide-react';
+import { FilePlus2, CheckCircle2, AlertCircle, Plus, ArrowDownCircle, ArrowUpCircle, Trash2, Clock, CheckCheck, Filter, Tag, Sun, Sunset, Moon } from 'lucide-react';
 
 export default function LancamentoModule({
   viveiros,
@@ -16,7 +16,7 @@ export default function LancamentoModule({
     return `${hours}:${minutes}`;
   };
 
-  // Estado do viveiro selecionado
+  // Estado do viveiro selecionado no Formulário
   const [selectedViveiroId, setSelectedViveiroId] = useState(
     viveiros.length > 0 ? viveiros[0].id : ''
   );
@@ -26,7 +26,7 @@ export default function LancamentoModule({
     (p) => p.viveiroId === selectedViveiroId && p.status === 'ativo'
   );
 
-  // Estado do lote selecionado (povoamentoId)
+  // Estado do lote selecionado no Formulário (povoamentoId)
   const [selectedPovoamentoId, setSelectedPovoamentoId] = useState(() => {
     return lotesDoViveiroAtivos.length > 0 ? lotesDoViveiroAtivos[0].id : '';
   });
@@ -43,6 +43,13 @@ export default function LancamentoModule({
   const [errorMsg, setErrorMsg] = useState('');
   const [toastMsg, setToastMsg] = useState('');
 
+  // -------------------------------------------------------------
+  // ESTADOS DOS 3 FILTROS DA TABELA DE HISTÓRICO DE LANÇAMENTOS
+  // -------------------------------------------------------------
+  const [tableFilterViveiroId, setTableFilterViveiroId] = useState('all');
+  const [tableFilterParamId, setTableFilterParamId] = useState('all');
+  const [tableFilterPeriod, setTableFilterPeriod] = useState('all'); // all | manha | tarde | noite
+
   const triggerToast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => {
@@ -50,7 +57,7 @@ export default function LancamentoModule({
     }, 4000);
   };
 
-  // Quando o viveiro muda, atualiza o lote selecionado para o primeiro lote ATIVO daquele viveiro
+  // Quando o viveiro muda no formulário, atualiza o lote para o primeiro lote ATIVO daquele viveiro
   const handleViveiroChange = (vivId) => {
     setSelectedViveiroId(vivId);
     const lotesAtivos = povoamentos.filter((p) => p.viveiroId === vivId && p.status === 'ativo');
@@ -164,6 +171,49 @@ export default function LancamentoModule({
       triggerToast('Medição excluída com sucesso.');
     }
   };
+
+  // -------------------------------------------------------------
+  // LÓGICA DE FILTRAGEM DO HISTÓRICO DE LANÇAMENTOS (3 FILTROS)
+  // -------------------------------------------------------------
+  const getPeriodFromTimeStr = (timeStr) => {
+    if (!timeStr) return 'manha'; // fallback padrão
+    const parts = timeStr.split(':');
+    const hour = parseInt(parts[0], 10);
+    if (isNaN(hour)) return 'manha';
+
+    // Manhã: 05:00 até 11:59 (5 <= hour < 12)
+    if (hour >= 5 && hour < 12) return 'manha';
+    // Tarde: 12:00 até 17:59 (12 <= hour < 18)
+    if (hour >= 12 && hour < 18) return 'tarde';
+    // Noite: 18:00 até 04:59 (hour >= 18 ou hour < 5)
+    return 'noite';
+  };
+
+  const filteredLancamentos = lancamentos.filter((l) => {
+    // 1. Filtro de Viveiro
+    if (tableFilterViveiroId !== 'all' && l.viveiroId !== tableFilterViveiroId) {
+      return false;
+    }
+
+    // 2. Filtro de Parâmetro
+    if (tableFilterParamId !== 'all' && l.parameterId !== tableFilterParamId) {
+      return false;
+    }
+
+    // 3. Filtro de Período (Manhã, Tarde, Noite)
+    if (tableFilterPeriod !== 'all') {
+      const period = getPeriodFromTimeStr(l.time);
+      if (period !== tableFilterPeriod) return false;
+    }
+
+    return true;
+  });
+
+  // Cultivo ativo do viveiro selecionado no filtro da tabela
+  const tableSelectedViveiroObj = viveiros.find((v) => v.id === tableFilterViveiroId);
+  const tableActiveLote = povoamentos.find(
+    (p) => p.viveiroId === tableFilterViveiroId && p.status === 'ativo'
+  );
 
   return (
     <div className="space-y-6 relative font-['Inter',sans-serif]">
@@ -374,16 +424,102 @@ export default function LancamentoModule({
         </div>
       </form>
 
-      {/* Tabela de Lançamentos Recentes */}
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-gray-900">Histórico de Lançamentos</h2>
+      {/* TABELA DE HISTÓRICO DE LANÇAMENTOS COM OS 3 FILTROS */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden space-y-0">
+        {/* Header do Histórico + Barra com os 3 Filtros */}
+        <div className="p-6 border-b border-gray-100 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <Clock className="w-5 h-5 text-brand-500" />
+                Histórico de Lançamentos
+              </h2>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Filtre os lançamentos por Viveiro, Parâmetro e Período do Dia.
+              </p>
+            </div>
+
+            {/* Badge de contagem dos itens filtrados */}
+            <span className="text-xs font-semibold text-gray-600 bg-gray-100 px-3 py-1 rounded-full self-start sm:self-auto">
+              {filteredLancamentos.length} de {lancamentos.length} lançamentos
+            </span>
+          </div>
+
+          {/* 🎯 BARRA DOS 3 FILTROS SOLICITADOS */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 bg-gray-50 p-3.5 rounded-xl border border-gray-200">
+            {/* FILTRO 1: VIVEIRO (Mostra o cultivo ativo automaticamente) */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1 flex items-center gap-1">
+                <Filter className="w-3 h-3 text-brand-500" />
+                Filtro 1: Viveiro
+              </label>
+              <select
+                value={tableFilterViveiroId}
+                onChange={(e) => setTableFilterViveiroId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">Todos os Viveiros</option>
+                {viveiros.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+              {tableFilterViveiroId !== 'all' && (
+                <p className="text-[11px] text-brand-600 font-semibold mt-1 flex items-center gap-1">
+                  <span>Cultivo Ativo:</span>
+                  <span className="bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded border border-brand-200 font-mono">
+                    🟢 {tableActiveLote ? tableActiveLote.numeroLote : 'Nenhum Ativo'}
+                  </span>
+                </p>
+              )}
+            </div>
+
+            {/* FILTRO 2: PARÂMETRO */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1 flex items-center gap-1">
+                <Tag className="w-3 h-3 text-brand-500" />
+                Filtro 2: Parâmetro
+              </label>
+              <select
+                value={tableFilterParamId}
+                onChange={(e) => setTableFilterParamId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">Todos os Parâmetros</option>
+                {parametros.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.unit})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* FILTRO 3: PERÍODO DO DIA (Manhã, Tarde, Noite com regras exatas de hora) */}
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-600 mb-1 flex items-center gap-1">
+                <Sun className="w-3 h-3 text-brand-500" />
+                Filtro 3: Período do Dia
+              </label>
+              <select
+                value={tableFilterPeriod}
+                onChange={(e) => setTableFilterPeriod(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-300 bg-white text-xs font-semibold text-gray-800 outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="all">Todos os Períodos</option>
+                <option value="manha">🌅 Manhã (05:00 às 11:59)</option>
+                <option value="tarde">☀️ Tarde (12:00 às 17:59)</option>
+                <option value="noite">🌙 Noite (18:00 às 04:59)</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        {lancamentos.length === 0 ? (
+        {/* Tabela dos Resultados Filtrados */}
+        {filteredLancamentos.length === 0 ? (
           <div className="p-12 text-center text-gray-400">
             <FilePlus2 className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p className="font-medium text-gray-600">Nenhum lançamento registrado.</p>
+            <p className="font-medium text-gray-600">Nenhum lançamento encontrado com os filtros selecionados.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -400,7 +536,7 @@ export default function LancamentoModule({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                {lancamentos.map((l) => {
+                {filteredLancamentos.map((l) => {
                   const viv = viveiros.find((v) => v.id === l.viveiroId);
                   const pov = povoamentos.find((p) => p.id === l.povoamentoId);
                   const par = parametros.find((p) => p.id === l.parameterId);
