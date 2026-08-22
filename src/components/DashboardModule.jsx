@@ -6,8 +6,7 @@ import {
   Activity,
   Tag,
   Sliders,
-  Sparkles,
-  Layers
+  Sparkles
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -122,7 +121,7 @@ export default function DashboardModule({
     ? povoamentos
     : povoamentos.filter((p) => p.viveiroId === selectedViveiroId);
 
-  // Parâmetros individuais (que não fazem parte dos pares consolidados ou que o usuário deseja ver individualmente, ex: Transparência e NAT)
+  // Parâmetros individuais (que não fazem parte dos pares consolidados ou que têm acompanhamento individual, ex: Transparência e NAT)
   const individualParams = parametros.filter((p) => !STRATEGIC_PARAM_IDS.has(p.id) || p.id === 'param-10' || p.id === 'param-7');
 
   const handleViveiroChange = (vId) => {
@@ -181,7 +180,7 @@ export default function DashboardModule({
     return { data, p1, p2 };
   };
 
-  // Montar dados para um único parâmetro individual (ex: Transparência, NAT, etc.)
+  // Montar dados para um único parâmetro individual
   const buildSingleParamChartData = (paramId) => {
     const param = parametros.find((p) => p.id === paramId);
     if (!param) return { data: [], param };
@@ -196,9 +195,7 @@ export default function DashboardModule({
       date: formatDateBR(l.date).substring(0, 5),
       formattedDate: formatDateBR(l.date),
       time: l.time || '',
-      value: l.value,
-      min: param.hasMin ? param.min : null,
-      max: param.max
+      value: l.value
     }));
 
     return { data, param };
@@ -215,7 +212,7 @@ export default function DashboardModule({
               Dashboard de Qualidade de Água
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              Análise estratégica com gráficos cruzados, gráficos individuais por parâmetro e comparativo livre.
+              Análise estratégica consolidada por viveiro e lote.
             </p>
           </div>
 
@@ -294,15 +291,14 @@ export default function DashboardModule({
         </div>
       </div>
 
-      {/* 📊 SEÇÃO 1: OS 5 GRÁFICOS / TABELAS ESTRATÉGICOS CONSOLIDADOS */}
+      {/* 📊 TÍTULO ÚNICO PARA A SEQUÊNCIA DA PÁGINA */}
       <div className="space-y-6">
         <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2 pt-2">
           <Sliders className="w-5 h-5 text-brand-500" />
-          {viewMode === 'chart'
-            ? 'Gráficos Estratégicos Consolidados (Pares de Parâmetros)'
-            : 'Tabelas Estratégicas Consolidadas (Pares de Parâmetros)'}
+          {viewMode === 'chart' ? 'Gráficos de Parâmetros' : 'Tabelas de Parâmetros'}
         </h2>
 
+        {/* 1. OS 5 PARES ESTRATÉGICOS CONSOLIDADOS (UM DEBAIXO DO OUTRO) */}
         {STRATEGIC_PAIRS.map((pair) => {
           const { data, p1, p2 } = buildDualParamChartData(pair.param1Id, pair.param2Id);
           const { showP1, showP2 } = pairCheckboxes[pair.id] || { showP1: true, showP2: true };
@@ -310,7 +306,7 @@ export default function DashboardModule({
           return (
             <div
               key={pair.id}
-              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 hover:border-brand-200 transition-colors"
+              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 hover:border-brand-200 transition-colors w-full"
             >
               {/* Header do Gráfico/Tabela Par */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-gray-100 gap-3">
@@ -465,109 +461,109 @@ export default function DashboardModule({
             </div>
           );
         })}
-      </div>
 
-      {/* 📈 SEÇÃO 2: GRÁFICOS / TABELAS DE PARÂMETROS INDIVIDUAIS (EX: TRANSPARÊNCIA, NAT, ETC.) */}
-      <div className="space-y-6 pt-4">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Layers className="w-5 h-5 text-brand-500" />
-          {viewMode === 'chart'
-            ? 'Gráficos de Parâmetros Individuais'
-            : 'Tabelas de Parâmetros Individuais'}
-        </h2>
+        {/* 2. PARÂMETROS INDIVIDUAIS (TAMANHO NORMAL UM DEBAIXO DO OUTRO NA SEQUÊNCIA) */}
+        {individualParams.map((param) => {
+          const { data } = buildSingleParamChartData(param.id);
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {individualParams.map((param) => {
-            const { data } = buildSingleParamChartData(param.id);
-
-            return (
-              <div
-                key={param.id}
-                className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-3 hover:border-brand-200 transition-colors"
-              >
-                <div className="flex items-center justify-between pb-2 border-b border-gray-100">
-                  <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+          return (
+            <div
+              key={param.id}
+              className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-4 hover:border-brand-200 transition-colors w-full"
+            >
+              {/* Header do Gráfico/Tabela Individual */}
+              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-3 h-3 rounded-full bg-emerald-500"></span>
                     {param.name}
                   </h3>
-                  <span className="text-xs font-mono font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                    {param.unit}
-                  </span>
+                  <p className="text-xs text-gray-500 font-medium mt-0.5">
+                    Acompanhamento individual de {param.name}
+                  </p>
                 </div>
-
-                {data.length === 0 ? (
-                  <div className="py-6 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
-                    <p className="text-xs font-medium text-gray-500">Sem lançamentos para este parâmetro.</p>
-                  </div>
-                ) : viewMode === 'chart' ? (
-                  <div className="h-56 w-full pt-2">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={data} margin={{ top: 10, right: 15, left: -10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
-                        <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 10 }} stroke="#cbd5e1" />
-                        <YAxis tick={{ fill: '#059669', fontSize: 11 }} stroke="#059669" />
-                        <Tooltip
-                          content={({ active, payload }) => {
-                            if (active && payload && payload.length) {
-                              const d = payload[0].payload;
-                              return (
-                                <div className="bg-white p-2.5 border border-gray-200 shadow-lg rounded-xl text-xs space-y-1">
-                                  <p className="text-gray-500 font-semibold">
-                                    Data: <span className="font-mono text-gray-900 font-bold">{d.formattedDate}</span> {d.time && `às ${d.time}`}
-                                  </p>
-                                  <p className="font-mono font-bold text-emerald-600">
-                                    {param.name}: {d.value} {param.unit}
-                                  </p>
-                                </div>
-                              );
-                            }
-                            return null;
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          name={`${param.name} (${param.unit})`}
-                          stroke="#10b981"
-                          strokeWidth={2.5}
-                          dot={{ r: 3.5, fill: '#10b981', strokeWidth: 1.5, stroke: '#ffffff' }}
-                          connectNulls
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  /* MODO TABELA INDIVIDUAL */
-                  <div className="overflow-x-auto border border-gray-100 rounded-xl">
-                    <table className="w-full text-left border-collapse text-xs">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200 font-semibold text-gray-500 uppercase tracking-wider">
-                          <th className="px-3 py-2.5">Data & Hora</th>
-                          <th className="px-3 py-2.5 text-right font-bold text-emerald-700">VALOR MEDIDO ({param.unit.toUpperCase()})</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100 font-mono">
-                        {data.map((row, i) => (
-                          <tr key={i} className="hover:bg-gray-50/80">
-                            <td className="px-3 py-2.5 text-gray-600 font-sans">
-                              {row.formattedDate} {row.time && `às ${row.time}`}
-                            </td>
-                            <td className="px-3 py-2.5 text-right font-bold text-emerald-700">
-                              {row.value} {param.unit}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                <span className="text-xs font-mono font-bold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
+                  {param.unit}
+                </span>
               </div>
-            );
-          })}
-        </div>
+
+              {/* CONTEÚDO: GRÁFICO OU TABELA INDIVIDUAL */}
+              {data.length === 0 ? (
+                <div className="py-8 text-center text-gray-400 bg-gray-50/50 rounded-xl border border-dashed border-gray-200">
+                  <Activity className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <p className="text-sm font-medium text-gray-500">
+                    Sem lançamentos registrados para este parâmetro.
+                  </p>
+                </div>
+              ) : viewMode === 'chart' ? (
+                <div className="h-72 w-full pt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={data} margin={{ top: 15, right: 20, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 11 }} stroke="#cbd5e1" />
+                      <YAxis tick={{ fill: '#059669', fontSize: 12 }} stroke="#059669" />
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-white p-3 border border-gray-200 shadow-lg rounded-xl text-xs space-y-1.5">
+                                <p className="text-gray-600 font-semibold border-b pb-1">
+                                  Data: <span className="font-mono text-gray-900 font-bold">{d.formattedDate}</span> {d.time && `às ${d.time}`}
+                                </p>
+                                <p className="font-mono font-bold text-emerald-600 text-sm">
+                                  {param.name}: {d.value} {param.unit}
+                                </p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: '600' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        name={`${param.name} (${param.unit})`}
+                        stroke="#10b981"
+                        strokeWidth={3}
+                        dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#ffffff' }}
+                        connectNulls
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : (
+                /* MODO TABELA INDIVIDUAL */
+                <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                        <th className="px-4 py-3">Data & Hora</th>
+                        <th className="px-4 py-3 font-semibold text-emerald-700 font-bold">{param.name.toUpperCase()} ({param.unit})</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-sm font-mono">
+                      {data.map((row, i) => (
+                        <tr key={i} className="hover:bg-gray-50/80">
+                          <td className="px-4 py-3 text-gray-600 font-sans">
+                            {row.formattedDate} {row.time && `às ${row.time}`}
+                          </td>
+                          <td className="px-4 py-3 font-bold text-emerald-700">
+                            {row.value} {param.unit}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
-      {/* 🎛️ SEÇÃO 3: CARD DO GRÁFICO / TABELA LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
+      {/* 🎛️ 3. CARD DO GRÁFICO / TABELA LIVRE (ANÁLISE COMPARATIVA PERSONALIZADA) - ÚLTIMO ELEMENTO DA PÁGINA */}
       <div className={`rounded-2xl p-6 shadow-xl border space-y-4 mt-8 transition-colors ${
         viewMode === 'chart'
           ? 'bg-gradient-to-br from-brand-900 via-slate-900 to-slate-950 text-white border-brand-500/20'
