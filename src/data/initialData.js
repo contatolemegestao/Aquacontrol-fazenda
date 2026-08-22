@@ -1,7 +1,7 @@
 export const INITIAL_PARAMETERS = [
   {
     id: 'param-1',
-    name: 'Oxigênio Dissolvido (O2)',
+    name: 'Oxigênio Dissolvido (O₂)',
     unit: 'mg/L',
     hasMin: true,
     min: 4,
